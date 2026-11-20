@@ -1,0 +1,39 @@
+{
+  "name": "comment-gift",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "collect": "tsx --env-file=.env.local scripts/collect-chat.ts",
+    "collect:forever": "powershell -ExecutionPolicy Bypass -File scripts/collect-forever.ps1",
+    "participants": "tsx --env-file=.env.local scripts/build-participants.ts",
+    "generate": "tsx --env-file=.env.local scripts/generate-characters.ts",
+    "youtube:oauth": "tsx --env-file=.env.local scripts/youtube-oauth.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
+    "next": "16.4.6",
+    "openai": "^7.62.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.1.1"
+  }
+}

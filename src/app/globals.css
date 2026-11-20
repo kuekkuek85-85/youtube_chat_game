@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* 행사 브랜드 색 (PRD 6-3) */
+@theme inline {
+  --color-lime: #d4ff2a;
+  --color-green: #b4efa0;
+  --color-ink: #0a0d0c;
+  --color-paper: #f6f8ef;
+  --font-sans: var(--font-noto), system-ui, sans-serif;
+  --font-display: var(--font-jua), var(--font-noto), system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.85) translateY(12px); opacity: 0; }
+  70% { transform: scale(1.03) translateY(0); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.animate-pop { animation: pop-in 420ms cubic-bezier(.2,.9,.3,1.2) both; }
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.villager:hover img, .villager:focus-visible img { animation: bob 700ms ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop, .villager:hover img { animation: none; }
+}
