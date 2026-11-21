@@ -25,7 +25,8 @@ if (!input) {
 }
 const videoId = parseVideoId(input);
 const minutes = Number(arg("minutes") ?? 150);
-const minInterval = Number(arg("min-interval") ?? minPollIntervalMs(minutes));
+// 기본값은 최소 5초. --minutes 를 짧게 줘도 할당량을 빨리 쓰지 않게 한다. (더 빠르게는 --min-interval 로 명시)
+const minInterval = Number(arg("min-interval") ?? Math.max(5000, minPollIntervalMs(minutes)));
 const fresh = process.argv.includes("--fresh");
 
 const db = adminClient();
