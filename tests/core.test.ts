@@ -5,6 +5,22 @@ import { buildParticipants, type ChatMessage } from "../src/lib/participants";
 import { runQueue } from "../src/lib/queue";
 import { minPollIntervalMs, parseVideoId, toRows, type LiveChatItem } from "../src/lib/youtube";
 import { sanitizeProfile } from "../src/lib/generate";
+import { collectorView } from "../src/lib/collector-status";
+
+describe("collectorView", () => {
+  const now = Date.parse("2026-11-24T11:00:00Z");
+  const ago = (s: number) => new Date(now - s * 1000).toISOString();
+  it("running 인데 마지막 수집이 오래되면 멈춤으로 보인다", () => {
+    expect(collectorView("running", ago(10), now).label).toBe("수집 중");
+    expect(collectorView("running", ago(300), now)).toEqual({ label: "멈춤 (응답 없음)", tone: "warn" });
+    expect(collectorView("running", undefined, now).tone).toBe("warn");
+  });
+  it("다른 상태는 한국어로", () => {
+    expect(collectorView("finished", ago(9999), now).label).toBe("끝남");
+    expect(collectorView("stopped: quotaExceeded", ago(5), now).label).toBe("멈춤: quotaExceeded");
+    expect(collectorView(undefined, undefined, now).label).toBe("-");
+  });
+});
 
 describe("filters", () => {
   it("개인정보를 잡는다", () => {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { collectorView } from "@/lib/collector-status";
 import { approveAllDone, logout, regenerate, setExcluded, setPublicOpen, setStatus } from "./actions";
 
 export interface AdminCharacter {
@@ -82,12 +83,18 @@ export function AdminBoard(props: {
   const participantById = new Map(participants.map((p) => [p.channel_id, p]));
 
   const shown = filter === "all" ? characters : characters.filter((c) => c.status === filter);
+  const collector = collectorView(settings.collector_status, settings.collector_last_poll);
 
   return (
     <div className="mt-6 flex flex-col gap-6">
       {/* 현황 */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="수집 상태" value={settings.collector_status ?? "-"} sub={`마지막 수집 ${timeAgo(settings.collector_last_poll)}`} />
+        <Stat
+          label="수집 상태"
+          value={collector.label}
+          valueClassName={collector.tone === "ok" ? "text-green-700" : collector.tone === "warn" ? "text-red-600" : undefined}
+          sub={`마지막 수집 ${timeAgo(settings.collector_last_poll)}`}
+        />
         <Stat label="수집한 댓글" value={`${messageCount.toLocaleString()}건`} sub={`API 호출 ${settings.collector_calls ?? 0}회`} />
         <Stat label="참여자" value={`${participants.length}명`} sub={`제외 ${excluded.length} · 미생성 ${notGenerated.length}`} />
         <Stat label="이미지 사용량" value={`${settings.images_generated ?? 0}장`} sub="상한은 MAX_IMAGES" />
@@ -156,11 +163,11 @@ export function AdminBoard(props: {
   );
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Stat({ label, value, sub, valueClassName }: { label: string; value: string; sub?: string; valueClassName?: string }) {
   return (
     <div className="rounded-2xl bg-white p-4 shadow-sm">
       <div className="text-xs text-ink/60">{label}</div>
-      <div className="mt-1 truncate text-lg font-bold" title={value}>{value}</div>
+      <div className={`mt-1 truncate text-lg font-bold ${valueClassName ?? ""}`} title={value}>{value}</div>
       {sub && <div className="mt-1 text-xs text-ink/60">{sub}</div>}
     </div>
   );
