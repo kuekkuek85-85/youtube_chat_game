@@ -111,7 +111,13 @@ export function AdminBoard(props: {
         >
           {publicOpen ? "ON · 공개 중" : "OFF · 비공개"}
         </button>
-        <span className="text-sm text-ink/60">승인된 캐릭터 {counts.approved ?? 0}명이 /gift 에 보입니다.</span>
+        {publicOpen ? (
+          <span className="text-sm text-ink/60">승인된 캐릭터 {counts.approved ?? 0}명이 /gift 에 보입니다.</span>
+        ) : (
+          <span className="text-sm font-semibold text-red-600">
+            지금은 /gift 에 아무것도 안 보입니다. 승인된 {counts.approved ?? 0}명은 공개 ON 을 누르면 보입니다.
+          </span>
+        )}
         <div className="ml-auto flex gap-2">
           <button
             disabled={pending || !counts.done}
