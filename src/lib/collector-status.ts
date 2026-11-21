@@ -20,6 +20,7 @@ export function collectorView(status: string | undefined, lastPoll: string | und
   if (status.startsWith("retrying")) {
     return age > STALE_AFTER_MS * 2 ? { label: "멈춤 (응답 없음)", tone: "warn" } : { label: "재시도 중", tone: "warn" };
   }
+  if (status.startsWith("waiting")) return { label: "방송 시작 대기", tone: "idle" };
   if (status === "finished") return { label: "끝남", tone: "idle" };
   if (status.startsWith("stopped:")) return { label: `멈춤: ${status.slice(8).trim()}`, tone: "warn" };
   if (status.startsWith("crashed:")) return { label: "오류로 종료", tone: "warn" };

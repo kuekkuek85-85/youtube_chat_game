@@ -119,6 +119,12 @@ async function main() {
 }
 
 main().catch(async (e) => {
+  if (e instanceof YouTubeError && e.reason === "noActiveLiveChat") {
+    // 방송 시작 전: 정상 상황이므로 한 줄만 보여 주고, collect-forever 가 10초 뒤 다시 시도한다
+    console.log(`[${now()}] 아직 라이브 채팅이 열리지 않았습니다. 10초 뒤 다시 확인합니다…`);
+    await setSettings(db, { collector_status: "waiting: 방송 시작 대기" }).catch(() => {});
+    process.exit(1);
+  }
   console.error(`[${now()}] 치명적 오류:`, e);
   await setSettings(db, { collector_status: `crashed: ${String(e?.message ?? e)}`.slice(0, 200) }).catch(() => {});
   process.exit(1);
