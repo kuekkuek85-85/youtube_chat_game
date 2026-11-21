@@ -75,7 +75,7 @@ async function main() {
     try {
       const page = await listChatMessages(liveChatId, pageToken);
       calls++;
-      const rows = toRows(page.items ?? []);
+      const rows = toRows(page.items ?? []).map((r) => ({ ...r, video_id: videoId }));
       if (rows.length) {
         const { error } = await db.from("chat_messages").upsert(rows, { onConflict: "id", ignoreDuplicates: true });
         if (error) throw error;

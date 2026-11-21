@@ -6,6 +6,29 @@ import { runQueue } from "../src/lib/queue";
 import { minPollIntervalMs, parseVideoId, toRows, type LiveChatItem } from "../src/lib/youtube";
 import { sanitizeProfile } from "../src/lib/generate";
 import { collectorView } from "../src/lib/collector-status";
+import { autoPick, searchCharacters } from "../src/lib/search";
+import { FALLBACK_PERSONALITY } from "../src/lib/generate";
+
+describe("gift 검색", () => {
+  const cs = [
+    { id: "1", displayName: "민수", name: "민수핑" },
+    { id: "2", displayName: "민수", name: "민수핑" },
+    { id: "3", displayName: "민수짱", name: "민수짱핑" },
+    { id: "4", displayName: "지원", name: "지원핑" },
+  ];
+  it("같은 닉네임이 여러 명이면 자동 선택하지 않는다", () => {
+    const r = searchCharacters(cs, "민수");
+    expect(r.exactCount).toBe(2);
+    expect(r.matches.map((c) => c.id)).toEqual(["1", "2", "3"]);
+    expect(autoPick(r.matches, r.exactCount)).toBeNull();
+  });
+  it("정확히 한 명이면 바로 보여 준다 (부분 일치 후보가 있어도)", () => {
+    const r = searchCharacters(cs, "@민수짱");
+    expect(autoPick(r.matches, r.exactCount)?.id).toBe("3");
+    const r2 = searchCharacters(cs, "지");
+    expect(autoPick(r2.matches, r2.exactCount)?.id).toBe("4");
+  });
+});
 
 describe("collectorView", () => {
   const now = Date.parse("2026-11-24T11:00:00Z");
@@ -72,6 +95,15 @@ describe("sanitizeProfile", () => {
     expect(p.personality).toBe("닮은 다정함");
     expect(p.look).toEqual(["hood", "star wand", "green boots"]);
     expect(p.quote).toBe("오늘 방송 함께해서 즐거웠어요!");
+  });
+  it("성격·외형에도 개인정보·욕설 검사를 한다", () => {
+    const p = sanitizeProfile({
+      personality: "연락은 010-1234-5678 로",
+      look: ["씨발 hat", "teacher@school.kr badge", "lime scarf"],
+      quote: "안녕",
+    });
+    expect(p.personality).toBe(FALLBACK_PERSONALITY);
+    expect(p.look).toEqual(["lime scarf"]);
   });
 });
 

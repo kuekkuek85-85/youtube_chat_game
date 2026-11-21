@@ -28,29 +28,68 @@ export async function logout(): Promise<void> {
 }
 
 type Status = "approved" | "hidden" | "done";
+type Result = { ok: true; count: number } | { ok: false; error: string };
 
-export async function setStatus(ids: string[], status: Status): Promise<void> {
-  await requireAdmin();
-  if (!ids.length) return;
-  const { error } = await adminClient()
-    .from("characters")
-    .update({ status, updated_at: new Date().toISOString() })
-    .in("id", ids);
+/** 제외된 참여자(#캐릭터제외·운영진·수동 제외 등)의 채널 ID */
+async function excludedChannelIds(db: ReturnType<typeof adminClient>): Promise<Set<string>> {
+  const { data, error } = await db.from("participants").select("channel_id").eq("excluded", true);
   if (error) throw new Error(error.message);
-  refresh();
+  return new Set((data ?? []).map((r) => r.channel_id as string));
 }
 
-/** 생성 완료(done)된 캐릭터를 한꺼번에 승인 */
-export async function approveAllDone(): Promise<number> {
+export async function setStatus(ids: string[], status: Status): Promise<Result> {
   await requireAdmin();
-  const { data, error } = await adminClient()
-    .from("characters")
-    .update({ status: "approved", updated_at: new Date().toISOString() })
-    .eq("status", "done")
-    .select("id");
-  if (error) throw new Error(error.message);
-  refresh();
-  return data?.length ?? 0;
+  if (!ids.length) return { ok: true, count: 0 };
+  const db = adminClient();
+  try {
+    if (status === "approved") {
+      const { data: rows, error } = await db.from("characters").select("id, channel_id").in("id", ids);
+      if (error) throw new Error(error.message);
+      const excluded = await excludedChannelIds(db);
+      if ((rows ?? []).some((r) => excluded.has(r.channel_id as string))) {
+        return { ok: false, error: "제외된 참여자의 캐릭터는 승인할 수 없습니다. 먼저 '제외 해제'를 하세요." };
+      }
+    }
+    const { data, error } = await db
+      .from("characters")
+      .update({ status, updated_at: new Date().toISOString() })
+      .in("id", ids)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return { ok: true, count: data?.length ?? 0 };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  } finally {
+    refresh();
+  }
+}
+
+/** 생성 완료(done)된 캐릭터를 한꺼번에 승인 (제외된 참여자는 건너뜀) */
+export async function approveAllDone(): Promise<Result> {
+  await requireAdmin();
+  const db = adminClient();
+  try {
+    const { data: done, error: readErr } = await db.from("characters").select("id, channel_id").eq("status", "done");
+    if (readErr) throw new Error(readErr.message);
+    const excluded = await excludedChannelIds(db);
+    const ids = (done ?? []).filter((r) => !excluded.has(r.channel_id as string)).map((r) => r.id as string);
+    let count = 0;
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await db
+        .from("characters")
+        .update({ status: "approved", updated_at: new Date().toISOString() })
+        .in("id", ids.slice(i, i + 200))
+        .eq("status", "done")
+        .select("id");
+      if (error) throw new Error(error.message);
+      count += data?.length ?? 0;
+    }
+    return { ok: true, count };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  } finally {
+    refresh();
+  }
 }
 
 export async function setPublicOpen(open: boolean): Promise<void> {
@@ -81,14 +120,24 @@ export async function regenerate(channelId: string, mode: "all" | "image"): Prom
 }
 
 /** 참여자를 수동으로 제외/포함 (제외 요청을 방송 밖에서 받은 경우 등) */
-export async function setExcluded(channelId: string, excluded: boolean): Promise<void> {
+export async function setExcluded(channelId: string, excluded: boolean): Promise<{ ok: boolean; error?: string }> {
   await requireAdmin();
   const db = adminClient();
-  const { error } = await db
-    .from("participants")
-    .update({ excluded, excluded_reason: excluded ? "manual" : null, updated_at: new Date().toISOString() })
-    .eq("channel_id", channelId);
-  if (error) throw new Error(error.message);
-  if (excluded) await db.from("characters").update({ status: "hidden" }).eq("channel_id", channelId);
-  refresh();
+  try {
+    const now = new Date().toISOString();
+    const { error } = await db
+      .from("participants")
+      .update({ excluded, excluded_reason: excluded ? "manual" : null, updated_at: now })
+      .eq("channel_id", channelId);
+    if (error) throw new Error(error.message);
+    if (excluded) {
+      const { error: hideErr } = await db.from("characters").update({ status: "hidden", updated_at: now }).eq("channel_id", channelId);
+      if (hideErr) throw new Error(`참여자는 제외했지만 캐릭터 숨김에 실패했습니다. 다시 시도하세요: ${hideErr.message}`);
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  } finally {
+    refresh();
+  }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useRef, useState } from "react";
+import { autoPick, searchCharacters } from "@/lib/search";
 
 export interface GiftCharacter {
   id: string;
@@ -13,24 +14,14 @@ export interface GiftCharacter {
   thumbUrl: string;
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/^@+/, "").replace(/\s+/g, "");
-
 export function GiftBox({ characters }: { characters: GiftCharacter[] }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const deferred = useDeferredValue(query);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const matches = useMemo(() => {
-    const q = norm(deferred);
-    if (!q) return [];
-    const exact = characters.filter((c) => norm(c.displayName) === q || norm(c.name) === q);
-    const partial = characters.filter((c) => !exact.includes(c) && (norm(c.displayName).includes(q) || norm(c.name).includes(q)));
-    return [...exact, ...partial].slice(0, 20);
-  }, [deferred, characters]);
-
-  const selected =
-    characters.find((c) => c.id === selectedId) ?? (matches.length === 1 || (matches[0] && norm(matches[0].displayName) === norm(deferred)) ? matches[0] : null);
+  const { matches, exactCount } = useMemo(() => searchCharacters(characters, deferred), [deferred, characters]);
+  const selected = characters.find((c) => c.id === selectedId) ?? autoPick(matches, exactCount);
 
   const pick = (id: string) => {
     setSelectedId(id);
@@ -67,6 +58,11 @@ export function GiftBox({ characters }: { characters: GiftCharacter[] }) {
           </p>
         )}
 
+        {!selected && matches.length > 1 && exactCount > 1 && (
+          <p className="text-sm text-ink/70">
+            같은 닉네임이 {exactCount}명 있어요. 내 캐릭터를 골라 주세요. · Several people share this name — pick yours.
+          </p>
+        )}
         {!selected && matches.length > 1 && (
           <ul className="flex flex-col gap-2">
             {matches.map((c) => (

@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import sharp from "sharp";
 import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BUCKET, getSetting, setSettings } from "./supabase";
+import { BUCKET } from "./supabase";
 import { buildImagePrompt, characterName, cleanNickname, stripBannedTerms, BANNED_TERMS, type CharacterProfile } from "./style";
 import { containsPII, containsProfanity } from "./filters";
 
@@ -81,24 +81,29 @@ export async function generateProfile(p: ParticipantRow): Promise<CharacterProfi
   return sanitizeProfile(raw);
 }
 
-/** LLM 결과를 한 번 더 걸러낸다 (금지어 제거, 길이 제한, 개인정보·욕설 차단) */
+const unsafe = (s: string) => containsPII(s) || containsProfanity(s);
+export const FALLBACK_PERSONALITY = "댓글로 방송을 밝혀 준 다정한 청취자";
+export const FALLBACK_QUOTE = "오늘 방송 함께해서 즐거웠어요!";
+
+/** LLM 결과를 한 번 더 걸러낸다 (금지어 제거, 길이 제한, 모든 필드의 개인정보·욕설 차단) */
 export function sanitizeProfile(raw: CharacterProfile): CharacterProfile {
-  const personality = stripBannedTerms(String(raw.personality ?? "")).slice(0, 40);
+  let personality = stripBannedTerms(String(raw.personality ?? "")).slice(0, 40);
+  if (unsafe(personality)) personality = FALLBACK_PERSONALITY;
   const look = (Array.isArray(raw.look) ? raw.look : [])
     .map((s) => stripBannedTerms(String(s)).slice(0, 40))
-    .filter(Boolean)
+    .filter((s) => s && !unsafe(s)) // 공개 표시 + 이미지 프롬프트로 가므로 문제 있는 항목은 버린다
     .slice(0, 3);
   let quote = stripBannedTerms(String(raw.quote ?? "")).slice(0, 60);
-  if (containsPII(quote) || containsProfanity(quote)) quote = "오늘 방송 함께해서 즐거웠어요!";
+  if (unsafe(quote)) quote = FALLBACK_QUOTE;
   if (!personality || look.length === 0) throw new Error("프로필 형식이 올바르지 않습니다.");
   return { personality, look, quote };
 }
 
-/** 이미지 생성 상한 확인 후 카운터를 1 올린다. (동시 실행 3~5건 수준에서 충분한 단순 카운터) */
+/** 이미지 1장 몫을 DB 에서 원자적으로 예약한다. 동시에 여러 건이 와도 MAX_IMAGES 를 넘지 않는다. */
 async function reserveImageSlot(db: SupabaseClient): Promise<void> {
-  const used = Number((await getSetting(db, "images_generated")) ?? 0);
-  if (used >= MAX_IMAGES) throw new CapReachedError(`이미지 생성 상한(${MAX_IMAGES}장)에 도달했습니다.`);
-  await setSettings(db, { images_generated: String(used + 1) });
+  const { data, error } = await db.rpc("reserve_image_slot", { cap: MAX_IMAGES });
+  if (error) throw new Error(`이미지 상한 예약 실패: ${error.message} (supabase/schema.sql 을 다시 실행했는지 확인)`);
+  if (data == null) throw new CapReachedError(`이미지 생성 상한(${MAX_IMAGES}장)에 도달했습니다.`);
 }
 
 export class CapReachedError extends Error {}
@@ -133,13 +138,15 @@ export async function createCharacter(
   opts: { keepProfile?: boolean } = {},
 ): Promise<void> {
   const name = characterName(p.display_name);
-  const { data: existing } = await db
+  const { data: existing, error: readErr } = await db
     .from("characters")
     .select("personality, look, quote, attempts, image_path, thumb_path")
     .eq("channel_id", p.channel_id)
     .maybeSingle();
+  if (readErr) throw new Error(`캐릭터 조회 실패: ${readErr.message}`);
 
-  await db.from("characters").upsert(
+  // 행을 먼저 확보하지 못하면 유료 생성(OpenAI)으로 넘어가지 않는다
+  const { error: upsertErr } = await db.from("characters").upsert(
     {
       channel_id: p.channel_id,
       display_name: cleanNickname(p.display_name),
@@ -152,6 +159,7 @@ export async function createCharacter(
     },
     { onConflict: "channel_id" },
   );
+  if (upsertErr) throw new Error(`캐릭터 저장 실패: ${upsertErr.message}`);
 
   try {
     const profile =
@@ -170,7 +178,7 @@ export async function createCharacter(
     await upload(db, imagePath, full);
     await upload(db, thumbPath, thumb);
 
-    const { error } = await db
+    const { data: saved, error } = await db
       .from("characters")
       .update({
         personality: profile.personality,
@@ -182,8 +190,12 @@ export async function createCharacter(
         error: null,
         updated_at: new Date().toISOString(),
       })
-      .eq("channel_id", p.channel_id);
-    if (error) throw error;
+      .eq("channel_id", p.channel_id)
+      .select("id");
+    if (error || !saved?.length) {
+      await db.storage.from(BUCKET).remove([imagePath, thumbPath]).catch(() => {});
+      throw new Error(`캐릭터 저장 실패: ${error?.message ?? "행이 없습니다"}`);
+    }
 
     // 재생성이면 예전 이미지 파일은 지운다 (실패해도 무시)
     const old = [existing?.image_path, existing?.thumb_path].filter((x): x is string => !!x);

@@ -1,5 +1,6 @@
 -- 유튜브 댓글 → 캐릭터 선물상자 스키마
 -- Supabase 대시보드 > SQL Editor 에 통째로 붙여 넣고 실행하세요. 여러 번 실행해도 안전합니다.
+-- (이 파일이 바뀌면 다시 통째로 실행하면 됩니다. 기존 데이터는 지우지 않습니다.)
 
 -- 1) 수집한 라이브 채팅 원본 (3회 행사 후 삭제 대상)
 create table if not exists chat_messages (
@@ -11,6 +12,9 @@ create table if not exists chat_messages (
   author_role   text not null default 'viewer' -- owner | moderator | viewer
 );
 create index if not exists chat_messages_channel_idx on chat_messages (channel_id);
+-- 어느 방송(영상)의 댓글인지. 리허설·본방송 댓글이 섞이지 않게 참여자 정리 때 이 값으로 거른다.
+alter table chat_messages add column if not exists video_id text;
+create index if not exists chat_messages_video_idx on chat_messages (video_id);
 
 -- 2) 참여자 (채널 ID 기준으로 묶음)
 create table if not exists participants (
@@ -65,10 +69,33 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function is_public_open() to anon, authenticated;
 
+-- 제외된 참여자(#캐릭터제외 등)의 캐릭터는 실수로 승인돼도 공개되지 않게 DB 에서 한 번 더 막는다
+create or replace function character_is_public(cid text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select is_public_open()
+     and not exists (select 1 from participants p where p.channel_id = cid and p.excluded);
+$$;
+grant execute on function character_is_public(text) to anon, authenticated;
+
 drop policy if exists "public reads approved characters" on characters;
 create policy "public reads approved characters" on characters
   for select to anon, authenticated
-  using (status = 'approved' and is_public_open());
+  using (status = 'approved' and character_is_public(channel_id));
+
+-- 이미지 생성 상한: 동시에 여러 건이 와도 상한 미만일 때만 1 올린다. 올렸으면 새 값, 상한이면 null.
+create or replace function reserve_image_slot(cap int) returns int
+language plpgsql security definer set search_path = public as $$
+declare used int;
+begin
+  insert into settings (key, value) values ('images_generated', '0') on conflict (key) do nothing;
+  update settings set value = (value::int + 1)::text
+   where key = 'images_generated' and value::int < cap
+   returning value::int into used;
+  return used;
+end;
+$$;
+revoke all on function reserve_image_slot(int) from public, anon, authenticated;
+grant execute on function reserve_image_slot(int) to service_role;
 
 -- 공개 키로는 필요한 열만 보이게 (오류 메시지 등 내부 열 숨김)
 revoke select on characters from anon, authenticated;
