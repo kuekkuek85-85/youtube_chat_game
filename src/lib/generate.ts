@@ -90,7 +90,9 @@ export function sanitizeProfile(raw: CharacterProfile): CharacterProfile {
   let personality = stripBannedTerms(String(raw.personality ?? "")).slice(0, 40);
   if (unsafe(personality)) personality = FALLBACK_PERSONALITY;
   const look = (Array.isArray(raw.look) ? raw.look : [])
-    .map((s) => stripBannedTerms(String(s)).slice(0, 40))
+    // 모델이 키워드 여러 개를 한 문자열에 몰아 넣는 경우가 있다 (예: 'a」「b', 'a`,`b') → 나눠서 쓴다
+    .flatMap((s) => String(s).split(/[」「『』`|\n]+|,\s*/))
+    .map((s) => stripBannedTerms(s.trim()).slice(0, 60).trim())
     .filter((s) => s && !unsafe(s)) // 공개 표시 + 이미지 프롬프트로 가므로 문제 있는 항목은 버린다
     .slice(0, 3);
   let quote = stripBannedTerms(String(raw.quote ?? "")).slice(0, 60);

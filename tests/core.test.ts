@@ -96,6 +96,16 @@ describe("sanitizeProfile", () => {
     expect(p.look).toEqual(["hood", "star wand", "green boots"]);
     expect(p.quote).toBe("오늘 방송 함께해서 즐거웠어요!");
   });
+  it("한 문자열에 몰린 외형 키워드를 나눈다", () => {
+    const p = sanitizeProfile({
+      personality: "다정함",
+      look: ["harbor-blue hoodie, salt-sparkle fur」「mini laptop satchel」「an"],
+      quote: "안녕",
+    });
+    expect(p.look).toEqual(["harbor-blue hoodie", "salt-sparkle fur", "mini laptop satchel"]);
+    const q = sanitizeProfile({ personality: "다정함", look: ["warm brown fur`,`scarf with stars"], quote: "" });
+    expect(q.look).toEqual(["warm brown fur", "scarf with stars"]);
+  });
   it("성격·외형에도 개인정보·욕설 검사를 한다", () => {
     const p = sanitizeProfile({
       personality: "연락은 010-1234-5678 로",
