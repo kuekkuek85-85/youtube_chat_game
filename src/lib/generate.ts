@@ -38,7 +38,7 @@ const PROFILE_SCHEMA = {
       type: "array",
       minItems: 3,
       maxItems: 3,
-      items: { type: "string", description: "외형 키워드, 영어 1~4단어 (예: 'tiny headphones')" },
+      items: { type: "string", description: "외형 키워드 하나, 영어 소문자 1~4단어, 문장부호·괄호·설명 없이 (예: 'tiny headphones')" },
     },
     quote: { type: "string", description: "오늘의 한마디, 한국어 40자 이내, 원래 댓글의 분위기를 반영" },
   },
@@ -92,7 +92,10 @@ export function sanitizeProfile(raw: CharacterProfile): CharacterProfile {
   const look = (Array.isArray(raw.look) ? raw.look : [])
     // 모델이 키워드 여러 개를 한 문자열에 몰아 넣는 경우가 있다 (예: 'a」「b', 'a`,`b') → 나눠서 쓴다
     .flatMap((s) => String(s).split(/[」「『』`|\n]+|,\s*/))
-    .map((s) => stripBannedTerms(s.trim()).slice(0, 60).trim())
+    .map((s) => s.replace(/\([^)]*\)?/g, " ").replace(/\s+/g, " ").trim()) // "frame(safe: ...)" 같은 괄호 메모 제거
+    // 모델이 혼잣말을 섞는 경우("propellae? wait no ...")가 있어, 영어 단어·하이픈·공백으로만 된 짧은 구절만 쓴다
+    .filter((s) => /^[A-Za-z][A-Za-z' -]{1,59}$/.test(s) && s.split(" ").length <= 6)
+    .map((s) => stripBannedTerms(s).trim())
     .filter((s) => s && !unsafe(s)) // 공개 표시 + 이미지 프롬프트로 가므로 문제 있는 항목은 버린다
     .slice(0, 3);
   let quote = stripBannedTerms(String(raw.quote ?? "")).slice(0, 60);

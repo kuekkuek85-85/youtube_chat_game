@@ -13,7 +13,8 @@
     "collect:forever": "powershell -ExecutionPolicy Bypass -File scripts/collect-forever.ps1",
     "participants": "tsx --env-file=.env.local scripts/build-participants.ts",
     "generate": "tsx --env-file=.env.local scripts/generate-characters.ts",
-    "youtube:oauth": "tsx --env-file=.env.local scripts/youtube-oauth.ts"
+    "youtube:oauth": "tsx --env-file=.env.local scripts/youtube-oauth.ts",
+    "live": "tsx --env-file=.env.local scripts/live-generate.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",

@@ -53,6 +53,14 @@ const FILTER_LABEL: Record<string, string> = {
   ...STATUS_LABEL,
 };
 
+const GENERATOR_LABEL: Record<string, string> = {
+  running: "만드는 중",
+  idle: "다음 회차 대기",
+  finished: "끝남",
+  stopped: "상한 도달로 멈춤",
+  crashed: "오류로 멈춤",
+};
+
 function timeAgo(iso?: string): string {
   if (!iso) return "-";
   const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
@@ -97,7 +105,15 @@ export function AdminBoard(props: {
         />
         <Stat label="수집한 댓글" value={`${messageCount.toLocaleString()}건`} sub={`API 호출 ${settings.collector_calls ?? 0}회`} />
         <Stat label="참여자" value={`${participants.length}명`} sub={`제외 ${excluded.length} · 미생성 ${notGenerated.length}`} />
-        <Stat label="이미지 사용량" value={`${settings.images_generated ?? 0}장`} sub="상한은 MAX_IMAGES" />
+        <Stat
+          label="이미지 사용량"
+          value={`${settings.images_generated ?? 0}장`}
+          sub={
+            settings.generator_round
+              ? `생성 도우미 ${settings.generator_round}회차 · ${GENERATOR_LABEL[settings.generator_status?.split(":")[0] ?? ""] ?? settings.generator_status} · ${timeAgo(settings.generator_last_run)}`
+              : "상한은 MAX_IMAGES"
+          }
+        />
       </section>
 
       {/* 공개 스위치 */}

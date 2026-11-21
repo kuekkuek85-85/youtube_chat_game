@@ -106,6 +106,14 @@ describe("sanitizeProfile", () => {
     const q = sanitizeProfile({ personality: "다정함", look: ["warm brown fur`,`scarf with stars"], quote: "" });
     expect(q.look).toEqual(["warm brown fur", "scarf with stars"]);
   });
+  it("외형 키워드에 섞인 혼잣말·괄호 메모를 걸러 낸다", () => {
+    const p = sanitizeProfile({
+      personality: "다정함",
+      look: ["soft pastel blue fur", "round glasses frame(safe: no logo only shape?)", "tiny laptop propellae? wait no that's not right"],
+      quote: "",
+    });
+    expect(p.look).toEqual(["soft pastel blue fur", "round glasses frame"]);
+  });
   it("성격·외형에도 개인정보·욕설 검사를 한다", () => {
     const p = sanitizeProfile({
       personality: "연락은 010-1234-5678 로",
