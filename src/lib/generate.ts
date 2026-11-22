@@ -10,7 +10,7 @@ import { containsPII, containsProfanity } from "./filters";
 export const TEXT_MODEL = process.env.OPENAI_TEXT_MODEL || "gpt-5-mini";
 export const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-2";
 export const IMAGE_QUALITY = (process.env.OPENAI_IMAGE_QUALITY || "low") as "low" | "medium" | "high";
-export const MAX_IMAGES = Number(process.env.MAX_IMAGES || 400);
+export const MAX_IMAGES = Number(process.env.MAX_IMAGES || 700);
 
 export interface ParticipantRow {
   channel_id: string;

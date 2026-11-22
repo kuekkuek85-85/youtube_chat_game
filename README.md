@@ -24,7 +24,7 @@
 | `scripts/collect-chat.ts` | 댓글 수집기 (pollingIntervalMillis 준수, 메시지 ID 로 중복 방지, 재시도, 이어 받기) |
 | `scripts/collect-forever.ps1` | 수집기가 죽으면 10초 뒤 자동 재시작 |
 | `scripts/build-participants.ts` | 채널 ID 로 묶기 + 개인정보·욕설 필터 + `#캐릭터제외` + 운영진 제외 |
-| `scripts/generate-characters.ts` | 프로필(LLM) → 이미지 큐 (동시 3건, 재시도 2회, 상한 400장) |
+| `scripts/generate-characters.ts` | 프로필(LLM) → 이미지 큐 (동시 3건, 재시도 2회, 상한 700장) |
 | `scripts/live-generate.ts` | 방송 중 생성 도우미: N분마다(기본 5) 참여자 정리 + 새 참여자 생성, `--video`, `--until 20:50`, 중복 실행 방지 |
 | `수집시작.cmd` | 더블클릭 실행 파일: 영상 주소만 넣으면 수집기 + 생성 도우미(마감 `GEN_UNTIL`, 기본 20:50)가 함께 켜짐 |
 | `생성시작.cmd` | 생성 도우미 창을 실수로 닫았을 때만 다시 켜는 용도 (이미 돌고 있으면 스스로 끝남) |

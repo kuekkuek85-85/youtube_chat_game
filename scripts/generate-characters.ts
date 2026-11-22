@@ -5,7 +5,7 @@
  *
  * - 대상: 제외되지 않은 참여자 중 캐릭터가 없거나 queued 인 사람. --retry-failed 면 failed 도 다시.
  * - 동시 3건(기본), 실패 시 2회 재시도. 진행률을 출력한다.
- * - 이미지 생성 누적 수가 MAX_IMAGES(기본 400)를 넘으면 멈춘다.
+ * - 이미지 생성 누적 수가 MAX_IMAGES(기본 700)를 넘으면 멈춘다.
  * - 스타일 확정용 샘플: --limit 20
  */
 import { adminClient, getSetting } from "../src/lib/supabase";
