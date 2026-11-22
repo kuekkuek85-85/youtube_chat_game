@@ -1,9 +1,10 @@
 # Auto-restart wrapper for the chat collector. Resumes from the saved nextPageToken.
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\collect-forever.ps1 [videoId or URL]
 #         (no argument: reads the URL from the console - used by the double-click launcher)
+#         -GenerateUntil 20:50 : also opens the live character generator in its own window for the same video
 # Stop with Ctrl+C (twice).
 # Exit codes from collect-chat.ts: 0 = finished, 2 = bad usage, 3 = fatal API error (quota/permission), 130 = Ctrl+C
-param([string]$Video = "")
+param([string]$Video = "", [string]$GenerateUntil = "")
 
 Set-Location (Join-Path $PSScriptRoot "..")
 
@@ -17,6 +18,14 @@ $Video = ($Video.Trim() -split '&')[0]
 Write-Host ""
 Write-Host "Video: $Video"
 Write-Host ""
+
+if ($GenerateUntil) {
+    # Same video ID as the collector, so rehearsal chatters are never mixed in even before the stream starts.
+    $starter = Join-Path $PSScriptRoot "live-start.ps1"
+    Start-Process powershell.exe -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$starter`"", "-Until", $GenerateUntil, "-Video", "`"$Video`"")
+    Write-Host "Character generator opened in a new window (cutoff $GenerateUntil)."
+    Write-Host ""
+}
 
 while ($true) {
     npx tsx --env-file=.env.local scripts/collect-chat.ts $Video

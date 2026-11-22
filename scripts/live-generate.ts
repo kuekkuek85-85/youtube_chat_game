@@ -1,18 +1,21 @@
 /**
  * 방송 중 캐릭터 미리 만들기 (생성 도우미)
  *
- *   npm run live -- [--every 5] [--until 20:40] [--concurrency 3]
+ *   npm run live -- [--video <영상ID 또는 URL>] [--every 5] [--until 20:40] [--concurrency 3]
  *
- * 수집기와 따로 켜 둔다. N분마다(기본 5분):
- *   1) 참여자 정리 (마지막으로 수집 중인 영상의 댓글만, #캐릭터제외·운영진 반영)
+ * 수집시작.cmd 가 영상 주소와 함께 자동으로 켠다 (생성시작.cmd 로 따로 켤 수도 있음). N분마다(기본 5분):
+ *   1) 참여자 정리 (--video 영상의 댓글만. 생략하면 마지막으로 수집한 영상. #캐릭터제외·운영진 반영)
+ *      방송 전에 켜 두면 리허설 영상 참여자가 섞이지 않도록 --video 를 꼭 넘긴다.
  *   2) 아직 캐릭터가 없는 사람만 생성 (실패 건은 3회까지 다시 시도)
  * 한 회차가 5분보다 오래 걸리면 끝나자마자 다음 회차를 시작한다.
  * --until 시각이 지나면 마지막 회차를 한 번 더 돌고 끝난다. 없으면 Ctrl+C 로 끝낸다.
  * 이미지 상한(MAX_IMAGES)에 닿으면 멈춘다.
+ * 이미 다른 생성 도우미가 돌고 있으면(heartbeat 90초 이내) 중복 생성을 막으려고 바로 끝난다.
  */
 import { spawn } from "node:child_process";
 import { join } from "node:path";
-import { adminClient, setSettings } from "../src/lib/supabase";
+import { adminClient, getSetting, setSettings } from "../src/lib/supabase";
+import { parseVideoId } from "../src/lib/youtube";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -21,6 +24,17 @@ function arg(name: string): string | undefined {
 const everyMs = Number(arg("every") ?? 5) * 60_000;
 const concurrency = arg("concurrency") ?? "3";
 const until = parseUntil(arg("until"));
+const videoId = parseVideo(arg("video"));
+
+function parseVideo(s?: string): string | null {
+  if (!s) return null;
+  try {
+    return parseVideoId(s);
+  } catch (e) {
+    console.error(String((e as Error).message));
+    process.exit(2);
+  }
+}
 
 /** "20:40" → 오늘 그 시각 (이 PC 시간 기준) */
 function parseUntil(s?: string): Date | null {
@@ -60,7 +74,7 @@ async function round(n: number): Promise<"ok" | "cap" | "error"> {
   console.log(`\n========== [${now()}] ${n}회차 ==========`);
   await setSettings(db, { generator_status: "running", generator_round: String(n), generator_last_run: new Date().toISOString() }).catch(() => {});
 
-  const p = await run("build-participants.ts");
+  const p = await run("build-participants.ts", videoId ? ["--video", videoId] : []);
   if (p !== 0) {
     console.error(`[${now()}] 참여자 정리에 실패했습니다 (코드 ${p}). 다음 회차에 다시 시도합니다.`);
     return "error";
@@ -74,8 +88,26 @@ async function round(n: number): Promise<"ok" | "cap" | "error"> {
   return "ok";
 }
 
+const HEARTBEAT_MS = 30_000;
+
+/** 다른 생성 도우미가 살아 있으면 true (두 개가 같은 사람을 동시에 만들면 비용이 두 번 든다) */
+async function anotherRunning(): Promise<boolean> {
+  const [status, beat] = await Promise.all([getSetting(db, "generator_status"), getSetting(db, "generator_heartbeat")]);
+  const alive = status === "running" || status === "idle";
+  return alive && !!beat && Date.now() - Date.parse(beat) < HEARTBEAT_MS * 3;
+}
+
 async function main() {
+  if (!process.argv.includes("--force") && (await anotherRunning())) {
+    console.error(`[${now()}] 다른 생성 도우미가 이미 돌고 있습니다. 이 창은 닫아도 됩니다. (그래도 켜려면 --force)`);
+    process.exit(2);
+  }
+  const beat = () => setSettings(db, { generator_heartbeat: new Date().toISOString() }).catch(() => {});
+  await beat();
+  setInterval(beat, HEARTBEAT_MS).unref();
+
   console.log(`[${now()}] 생성 도우미 시작: ${everyMs / 60_000}분마다, 동시 ${concurrency}건${until ? `, ${until.toLocaleTimeString("ko-KR", { hour12: false })}까지` : ""}`);
+  console.log(`  대상 영상: ${videoId ?? "마지막으로 수집한 영상"}`);
   let n = 0;
   let lastRound = false;
   while (true) {
