@@ -1,0 +1,64 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
+import { isAdmin } from "@/lib/auth";
+import { adminClient, getSetting, publicImageUrl } from "@/lib/supabase";
+import { AWARD_KEY, parsePicks } from "@/lib/award";
+import { containsPII, containsProfanity } from "@/lib/filters";
+import { cleanNickname } from "@/lib/style";
+import { LoginForm } from "../login-form";
+import { AwardPicker, type AwardComment } from "./award-picker";
+
+export const metadata: Metadata = { title: "베스트 댓글 시상", robots: { index: false, follow: false } };
+
+export default function AwardAdminPage() {
+  return (
+    <main className="mx-auto w-full max-w-5xl px-4 py-8">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-3xl">베스트 댓글 시상 🏆</h1>
+        <Link href="/admin" className="ml-auto rounded-lg border border-ink/20 px-3 py-1.5 text-sm">← 관리 화면</Link>
+      </div>
+      <Suspense fallback={<p className="mt-6 text-ink/60">불러오는 중…</p>}>
+        <AwardGate />
+      </Suspense>
+    </main>
+  );
+}
+
+async function AwardGate() {
+  if (!(await isAdmin())) return <LoginForm />;
+  const db = adminClient();
+  const [videoId, picksRaw] = await Promise.all([getSetting(db, "collector_video_id"), getSetting(db, AWARD_KEY)]);
+
+  // 이번 방송(마지막으로 수집한 영상) 댓글. 최근 것부터 최대 5000건
+  let q = db.from("chat_messages").select("id, channel_id, display_name, message, published_at, author_role");
+  if (videoId) q = q.eq("video_id", videoId);
+  const [msgRes, partRes, charRes] = await Promise.all([
+    q.order("published_at", { ascending: false }).range(0, 4999),
+    db.from("participants").select("channel_id, excluded, excluded_reason").eq("excluded", true),
+    db.from("characters").select("channel_id, name, thumb_path, status"),
+  ]);
+  const err = msgRes.error ?? partRes.error ?? charRes.error;
+  if (err) return <p className="mt-6 rounded-lg bg-red-100 p-4 text-red-800">DB 오류: {err.message}</p>;
+
+  const excluded = new Map((partRes.data ?? []).map((p) => [p.channel_id as string, p.excluded_reason as string | null]));
+  const chars = new Map((charRes.data ?? []).map((c) => [c.channel_id as string, c]));
+  const comments: AwardComment[] = (msgRes.data ?? []).map((m) => {
+    const c = chars.get(m.channel_id as string);
+    const text = m.message as string;
+    return {
+      id: m.id as string,
+      channelId: m.channel_id as string,
+      displayName: cleanNickname(m.display_name as string),
+      message: text,
+      publishedAt: m.published_at as string,
+      staff: m.author_role !== "viewer",
+      excludedReason: excluded.get(m.channel_id as string) ?? null,
+      unsafe: containsPII(text) || containsProfanity(text),
+      characterName: c && c.status !== "hidden" ? ((c.name as string | null) ?? null) : null,
+      thumbUrl: c && c.status !== "hidden" ? publicImageUrl(c.thumb_path as string | null) : null,
+    };
+  });
+
+  return <AwardPicker comments={comments} initialPicks={parsePicks(picksRaw)} videoId={videoId} />;
+}

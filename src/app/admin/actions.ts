@@ -5,6 +5,8 @@ import { refresh } from "next/cache";
 import { ADMIN_COOKIE, checkPassword, requireAdmin, sessionToken } from "@/lib/auth";
 import { adminClient, setSettings } from "@/lib/supabase";
 import { createCharacter, type ParticipantRow } from "@/lib/generate";
+import { AWARD_KEY, AWARD_MAX } from "@/lib/award";
+import { containsPII, containsProfanity } from "@/lib/filters";
 
 export async function login(_prev: string | null, form: FormData): Promise<string | null> {
   const pw = String(form.get("password") ?? "");
@@ -116,6 +118,31 @@ export async function regenerate(channelId: string, mode: "all" | "image"): Prom
   } catch (e) {
     refresh();
     return { ok: false, error: (e as Error).message };
+  }
+}
+
+/** 베스트 댓글 선정 저장 (최대 2개, 서로 다른 사람, 개인정보·욕설 댓글 불가) */
+export async function setAwardPicks(messageIds: string[]): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  const ids = [...new Set(messageIds)];
+  if (ids.length > AWARD_MAX) return { ok: false, error: `베스트 댓글은 ${AWARD_MAX}개까지 고를 수 있습니다.` };
+  const db = adminClient();
+  try {
+    if (ids.length) {
+      const { data, error } = await db.from("chat_messages").select("id, channel_id, message").in("id", ids);
+      if (error) throw new Error(error.message);
+      if ((data ?? []).length !== ids.length) return { ok: false, error: "댓글을 찾을 수 없습니다. 새로고침 후 다시 고르세요." };
+      if (new Set(data!.map((m) => m.channel_id)).size !== ids.length) return { ok: false, error: "같은 사람의 댓글을 두 개 고를 수 없습니다." };
+      if (data!.some((m) => containsPII(m.message as string) || containsProfanity(m.message as string))) {
+        return { ok: false, error: "개인정보나 욕설이 들어간 댓글은 방송 화면에 띄울 수 없습니다." };
+      }
+    }
+    await setSettings(db, { [AWARD_KEY]: JSON.stringify(ids) });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  } finally {
+    refresh();
   }
 }
 

@@ -148,6 +148,7 @@ export function AdminBoard(props: {
           >
             생성 완료 전체 승인 ({counts.done ?? 0})
           </button>
+          <Link href="/admin/award" className="rounded-lg bg-lime px-3 py-1.5 text-sm font-semibold">🏆 베스트 댓글 시상</Link>
           <Link href="/gift" target="_blank" className="rounded-lg border border-ink/20 px-3 py-1.5 text-sm">/gift 열기</Link>
           <button onClick={() => start(() => logout())} className="rounded-lg border border-ink/20 px-3 py-1.5 text-sm">로그아웃</button>
         </div>
