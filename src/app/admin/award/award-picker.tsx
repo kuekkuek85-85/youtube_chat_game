@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { setAwardPicks } from "../actions";
+import { setAwardPicks, suggestAward } from "../actions";
 
 export interface AwardComment {
   id: string;
@@ -18,14 +18,26 @@ export interface AwardComment {
 }
 
 const MAX = 2;
+const BLOCKED_REASONS = new Set(["staff", "moderator", "bad_nickname"]);
 const time = (iso: string) => new Date(iso).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false });
 
-export function AwardPicker({ comments, initialPicks, videoId }: { comments: AwardComment[]; initialPicks: string[]; videoId: string | null }) {
+export function AwardPicker({
+  comments,
+  initialPicks,
+  suggestions,
+  videoId,
+}: {
+  comments: AwardComment[];
+  initialPicks: string[];
+  suggestions: { id: string; reason: string }[];
+  videoId: string | null;
+}) {
   const [picks, setPicks] = useState<string[]>(initialPicks);
   const [query, setQuery] = useState("");
   const [hideShort, setHideShort] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [thinking, think] = useTransition();
 
   const byId = useMemo(() => new Map(comments.map((c) => [c.id, c])), [comments]);
   const countBy = useMemo(() => {
@@ -34,6 +46,22 @@ export function AwardPicker({ comments, initialPicks, videoId }: { comments: Awa
     return m;
   }, [comments]);
   const pickedChannels = new Set(picks.map((id) => byId.get(id)?.channelId).filter(Boolean));
+
+  /** 선정 버튼 상태: null 이면 고를 수 있음, 아니면 못 고르는 이유 */
+  const pickBlock = (c: AwardComment): string | null => {
+    if (picks.includes(c.id)) return "이미 선정됨";
+    if (c.unsafe || c.staff || BLOCKED_REASONS.has(c.excludedReason ?? "")) return "방송에 띄울 수 없는 댓글입니다";
+    if (pickedChannels.has(c.channelId)) return "이미 이 사람의 댓글을 골랐어요";
+    if (picks.length >= MAX) return "이미 2개를 골랐어요. 하나를 빼고 고르세요";
+    return null;
+  };
+
+  const askAI = () =>
+    think(async () => {
+      setNotice(null);
+      const r = await suggestAward();
+      setNotice(r.ok ? `AI 가 후보 ${r.count}개를 추천했어요. 이 중에서 골라 주세요.` : `AI 추천 실패: ${r.error}`);
+    });
 
   const q = query.trim().toLowerCase().replace(/^@/, "");
   const shown = comments.filter((c) => {
@@ -99,6 +127,49 @@ export function AwardPicker({ comments, initialPicks, videoId }: { comments: Awa
       </section>
       {notice && <p className="rounded-lg bg-lime/60 px-4 py-2">{notice}</p>}
 
+      {/* AI 추천 */}
+      <section className="rounded-2xl border-2 border-ink/10 bg-white p-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-display text-2xl">🤖 AI 추천 후보</h2>
+          <p className="text-sm text-ink/60">AI 가 이번 방송 댓글을 읽고 후보 3개를 골라요. 최종 선정은 직접 하세요.</p>
+          <button
+            disabled={thinking || pending}
+            onClick={askAI}
+            className="ml-auto rounded-full bg-ink px-4 py-2 font-bold text-lime disabled:opacity-50"
+          >
+            {thinking ? "AI 가 댓글을 읽는 중… (최대 1분)" : suggestions.length ? "다시 추천받기" : "AI 추천 받기"}
+          </button>
+        </div>
+        {suggestions.length > 0 ? (
+          <ol className="mt-4 grid gap-3 md:grid-cols-3">
+            {suggestions.map((sg, i) => {
+              const c = byId.get(sg.id);
+              if (!c) return null;
+              const why = pickBlock(c);
+              const picked = picks.includes(c.id);
+              return (
+                <li key={sg.id} className={`flex flex-col gap-2 rounded-xl p-4 ${picked ? "bg-lime/50" : "bg-paper"}`}>
+                  <p className="text-xs font-semibold text-ink/50">후보 {i + 1}</p>
+                  <p className="font-semibold">{c.displayName}</p>
+                  <p className="flex-1 break-words">“{c.message}”</p>
+                  {sg.reason && <p className="text-xs text-ink/60">추천 이유: {sg.reason}</p>}
+                  <button
+                    disabled={pending || !!why}
+                    onClick={() => save([...picks, c.id])}
+                    title={why ?? undefined}
+                    className="rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-lime disabled:opacity-30"
+                  >
+                    {picked ? "선정됨" : "이 댓글 선정"}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="mt-3 text-sm text-ink/50">방송이 끝나갈 때(댓글이 충분히 모였을 때) 눌러 주세요. 여러 번 눌러도 됩니다.</p>
+        )}
+      </section>
+
       {/* 검색 */}
       <section className="flex flex-wrap items-center gap-3">
         <input
@@ -120,9 +191,7 @@ export function AwardPicker({ comments, initialPicks, videoId }: { comments: Awa
       <section className="flex flex-col divide-y overflow-hidden rounded-2xl bg-white shadow-sm">
         {shown.slice(0, 500).map((c) => {
           const picked = picks.includes(c.id);
-          const samePerson = !picked && pickedChannels.has(c.channelId);
-          const blocked = c.unsafe || c.staff;
-          const full = picks.length >= MAX;
+          const why = pickBlock(c);
           return (
             <div key={c.id} className={`flex items-start gap-3 p-3 ${picked ? "bg-lime/40" : ""}`}>
               {c.thumbUrl ? (
@@ -134,15 +203,15 @@ export function AwardPicker({ comments, initialPicks, videoId }: { comments: Awa
                 <p className="text-sm">
                   <b>{c.displayName}</b> <span className="text-ink/50">· {time(c.publishedAt)} · 이 사람 댓글 {countBy.get(c.channelId)}건</span>
                   {c.staff && <Badge tone="gray">운영진·모더레이터</Badge>}
-                  {c.excludedReason && <Badge tone="red">캐릭터 제외</Badge>}
+                  {c.excludedReason && <Badge tone="red">{BLOCKED_REASONS.has(c.excludedReason) ? "시상 불가" : "캐릭터 제외"}</Badge>}
                   {c.unsafe && <Badge tone="red">개인정보·욕설</Badge>}
                 </p>
                 <p className="mt-0.5 break-words">{c.message}</p>
               </div>
               <button
-                disabled={pending || picked || samePerson || blocked || full}
+                disabled={pending || !!why}
                 onClick={() => save([...picks, c.id])}
-                title={blocked ? "방송에 띄울 수 없는 댓글입니다" : samePerson ? "이미 이 사람의 댓글을 골랐어요" : full ? "이미 2개를 골랐어요. 하나를 빼고 고르세요" : undefined}
+                title={why ?? undefined}
                 className="shrink-0 rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-lime disabled:opacity-30"
               >
                 {picked ? "선정됨" : "선정"}

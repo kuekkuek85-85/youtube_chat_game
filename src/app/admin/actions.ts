@@ -7,6 +7,7 @@ import { ADMIN_COOKIE, SESSION_HOURS, checkPassword, requireAdmin, sessionToken 
 import { adminClient, removeCharacterImages, setSettings } from "@/lib/supabase";
 import { createCharacter, type ParticipantRow } from "@/lib/generate";
 import { AWARD_KEY, AWARD_MAX } from "@/lib/award";
+import { suggestCandidates } from "@/lib/award-ai";
 import { containsPII, containsProfanity } from "@/lib/filters";
 
 // 로그인 실패 제한: 같은 IP 에서 15분 안에 8번 틀리면 15분 동안 막는다 (전체 잠금은 운영진까지 막으므로 하지 않음)
@@ -146,6 +147,19 @@ export async function regenerate(channelId: string, mode: "all" | "image"): Prom
   } catch (e) {
     refresh();
     return { ok: false, error: (e as Error).message };
+  }
+}
+
+/** 베스트 댓글 후보를 AI 에게 추천받는다 (최종 선정은 사람이). 20~60초 걸릴 수 있다. */
+export async function suggestAward(): Promise<{ ok: boolean; count?: number; error?: string }> {
+  await requireAdmin();
+  try {
+    const s = await suggestCandidates(adminClient());
+    return { ok: true, count: s.length };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  } finally {
+    refresh();
   }
 }
 

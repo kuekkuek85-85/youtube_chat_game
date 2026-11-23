@@ -4,12 +4,15 @@ import { Suspense } from "react";
 import { isAdmin } from "@/lib/auth";
 import { adminClient, getSetting, publicImageUrl } from "@/lib/supabase";
 import { AWARD_KEY, parsePicks } from "@/lib/award";
+import { SUGGEST_KEY, parseSuggestions } from "@/lib/award-ai";
 import { containsPII, containsProfanity } from "@/lib/filters";
 import { cleanNickname } from "@/lib/style";
 import { LoginForm } from "../login-form";
 import { AwardPicker, type AwardComment } from "./award-picker";
 
 export const metadata: Metadata = { title: "베스트 댓글 시상", robots: { index: false, follow: false } };
+// AI 추천 서버 액션이 LLM 응답을 기다리므로 넉넉히
+export const maxDuration = 120;
 
 export default function AwardAdminPage() {
   return (
@@ -28,7 +31,13 @@ export default function AwardAdminPage() {
 async function AwardGate() {
   if (!(await isAdmin())) return <LoginForm />;
   const db = adminClient();
-  const [videoId, picksRaw] = await Promise.all([getSetting(db, "collector_video_id"), getSetting(db, AWARD_KEY)]);
+  const [videoId, picksRaw, suggestRaw] = await Promise.all([
+    getSetting(db, "collector_video_id"),
+    getSetting(db, AWARD_KEY),
+    getSetting(db, SUGGEST_KEY),
+  ]);
+  const picks = parsePicks(picksRaw);
+  const suggestions = parseSuggestions(suggestRaw);
 
   // 이번 방송(마지막으로 수집한 영상) 댓글. 최근 것부터 최대 5000건
   let q = db.from("chat_messages").select("id, channel_id, display_name, message, published_at, author_role");
@@ -38,12 +47,20 @@ async function AwardGate() {
     db.from("participants").select("channel_id, excluded, excluded_reason").eq("excluded", true),
     db.from("characters").select("channel_id, name, thumb_path, status"),
   ]);
-  const err = msgRes.error ?? partRes.error ?? charRes.error;
+  // 추천·선정된 댓글이 위 5000건 밖에 있어도 보이게 따로 불러온다
+  const wanted = [...picks, ...suggestions.map((s) => s.id)];
+  const extraRes = wanted.length
+    ? await db.from("chat_messages").select("id, channel_id, display_name, message, published_at, author_role").in("id", wanted)
+    : { data: [], error: null };
+  const err = msgRes.error ?? partRes.error ?? charRes.error ?? extraRes.error;
   if (err) return <p className="mt-6 rounded-lg bg-red-100 p-4 text-red-800">DB 오류: {err.message}</p>;
 
   const excluded = new Map((partRes.data ?? []).map((p) => [p.channel_id as string, p.excluded_reason as string | null]));
   const chars = new Map((charRes.data ?? []).map((c) => [c.channel_id as string, c]));
-  const comments: AwardComment[] = (msgRes.data ?? []).map((m) => {
+  const rows = [...(msgRes.data ?? [])];
+  const have = new Set(rows.map((m) => m.id));
+  for (const m of extraRes.data ?? []) if (!have.has(m.id)) rows.push(m);
+  const comments: AwardComment[] = rows.map((m) => {
     const c = chars.get(m.channel_id as string);
     const text = m.message as string;
     return {
@@ -60,5 +77,5 @@ async function AwardGate() {
     };
   });
 
-  return <AwardPicker comments={comments} initialPicks={parsePicks(picksRaw)} videoId={videoId} />;
+  return <AwardPicker comments={comments} initialPicks={picks} suggestions={suggestions} videoId={videoId} />;
 }

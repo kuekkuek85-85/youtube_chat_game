@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const ADMIN_COOKIE = "gift_admin";
@@ -47,7 +48,10 @@ export function checkPassword(input: string): boolean {
 }
 
 export async function isAdmin(): Promise<boolean> {
-  return verifySession((await cookies()).get(ADMIN_COOKIE)?.value);
+  const value = (await cookies()).get(ADMIN_COOKIE)?.value;
+  if (!value) return false;
+  await connection(); // 만료 검사에 현재 시각을 쓰므로 요청 시점에만 판단한다
+  return verifySession(value);
 }
 
 export async function requireAdmin(): Promise<void> {

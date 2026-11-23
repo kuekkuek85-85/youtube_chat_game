@@ -20,7 +20,7 @@ export interface ParticipantRow {
 }
 
 let client: OpenAI | null = null;
-function openai(): OpenAI {
+export function openai(): OpenAI {
   if (!client) {
     if (!process.env.OPENAI_API_KEY) throw new Error("환경변수 OPENAI_API_KEY 가 비어 있습니다.");
     client = new OpenAI();
