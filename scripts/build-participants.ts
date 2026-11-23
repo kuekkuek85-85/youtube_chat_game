@@ -11,7 +11,7 @@
  * STAFF_CHANNEL_IDS (쉼표 구분) 에 운영진 채널 ID 를 넣으면 제외된다. 채널 소유자·모더레이터도 기본 제외.
  * 모더레이터를 포함하려면 EXCLUDE_MODERATORS=false.
  */
-import { adminClient, getSetting } from "../src/lib/supabase";
+import { adminClient, getSetting, removeCharacterImages } from "../src/lib/supabase";
 import { buildParticipants, type ChatMessage } from "../src/lib/participants";
 import { parseVideoId } from "../src/lib/youtube";
 
@@ -118,6 +118,9 @@ async function main() {
     hidden += data?.length ?? 0;
   }
   if (hidden) console.log(`제외된 참여자의 캐릭터 ${hidden}개를 숨김 처리했습니다.`);
+  // 공개 버킷이라 숨김만으로는 이미 퍼진 이미지 URL 이 계속 열린다 → 파일도 지운다
+  const removed = await removeCharacterImages(db, excludedIds);
+  if (removed) console.log(`제외된 참여자의 이미지 파일 ${removed}명분을 저장소에서 지웠습니다.`);
   console.log("participants 테이블을 갱신했습니다. 다음 단계: npm run generate");
 }
 

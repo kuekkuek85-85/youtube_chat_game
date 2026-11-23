@@ -47,7 +47,8 @@ export async function loadWinners(db: SupabaseClient): Promise<Winner[]> {
     .filter((m): m is NonNullable<typeof m> => !!m)
     .map((m) => {
       const c = charBy.get(m.channel_id as string);
-      const usable = c && c.status !== "hidden" && c.image_path;
+      // 운영진이 승인한 캐릭터만 방송 화면에 띄운다 (#캐릭터제외 등으로 숨겨진 것·검토 전 것은 트로피로 대신)
+      const usable = c && c.status === "approved" && c.image_path;
       return {
         messageId: m.id as string,
         channelId: m.channel_id as string,

@@ -28,6 +28,30 @@ export function publicImageUrl(path: string | null | undefined): string | null {
   return `${base}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
+/**
+ * 제외된 참여자의 이미지 파일을 저장소에서 지우고 경로를 비운다.
+ * 버킷이 공개라서, 숨김만 하면 이미 퍼진 URL 로 계속 볼 수 있기 때문이다.
+ */
+export async function removeCharacterImages(db: SupabaseClient, channelIds: string[]): Promise<number> {
+  let removed = 0;
+  for (let i = 0; i < channelIds.length; i += 200) {
+    const { data, error } = await db
+      .from("characters")
+      .select("channel_id, image_path, thumb_path")
+      .in("channel_id", channelIds.slice(i, i + 200));
+    if (error) throw error;
+    const paths = (data ?? []).flatMap((c) => [c.image_path, c.thumb_path]).filter((x): x is string => !!x);
+    if (!paths.length) continue;
+    const { error: rmErr } = await db.storage.from(BUCKET).remove(paths);
+    if (rmErr) throw rmErr;
+    const ids = (data ?? []).filter((c) => c.image_path || c.thumb_path).map((c) => c.channel_id as string);
+    const { error: upErr } = await db.from("characters").update({ image_path: null, thumb_path: null, status: "hidden" }).in("channel_id", ids);
+    if (upErr) throw upErr;
+    removed += ids.length;
+  }
+  return removed;
+}
+
 export async function getSetting(db: SupabaseClient, key: string): Promise<string | null> {
   const { data, error } = await db.from("settings").select("value").eq("key", key).maybeSingle();
   if (error) throw error;

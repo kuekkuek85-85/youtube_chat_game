@@ -1,5 +1,5 @@
 // 채팅 메시지 → 참여자 묶기 (순수 함수, 테스트 대상)
-import { isUsableComment, wantsExclusion } from "./filters";
+import { containsPII, containsProfanity, isUsableComment, wantsExclusion } from "./filters";
 
 export interface ChatMessage {
   id: string;
@@ -72,6 +72,7 @@ export function buildParticipants(messages: ChatMessage[], opts: BuildOptions = 
     if (staff.has(channel_id) || list.some((m) => m.author_role === "owner")) reason = "staff";
     else if (excludeModerators && list.some((m) => m.author_role === "moderator")) reason = "moderator";
     else if (texts.some(wantsExclusion)) reason = "opt_out";
+    else if (containsProfanity(latest.display_name) || containsPII(latest.display_name)) reason = "bad_nickname"; // 닉네임은 그대로 공개되므로
     else if (top.length === 0) reason = "no_usable_comments";
 
     result.push({

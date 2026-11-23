@@ -114,6 +114,10 @@ describe("sanitizeProfile", () => {
     });
     expect(p.look).toEqual(["soft pastel blue fur", "round glasses frame"]);
   });
+  it("외형에 무기·피·노출 같은 키워드는 버린다", () => {
+    const p = sanitizeProfile({ personality: "다정함", look: ["bloody knife", "tiny sword charm", "lime scarf", "round glasses"], quote: "" });
+    expect(p.look).toEqual(["lime scarf", "round glasses"]);
+  });
   it("성격·외형에도 개인정보·욕설 검사를 한다", () => {
     const p = sanitizeProfile({
       personality: "연락은 010-1234-5678 로",
@@ -159,6 +163,15 @@ describe("buildParticipants", () => {
     );
     const reason = Object.fromEntries(ps.map((p) => [p.channel_id, p.excluded_reason]));
     expect(reason).toEqual({ staff: "staff", owner: "staff", mod: "moderator", optout: "opt_out", pii: "no_usable_comments", ok: null });
+  });
+  it("닉네임에 욕설·개인정보가 있으면 제외한다 (닉네임은 그대로 공개되므로)", () => {
+    const ps = buildParticipants([
+      msg({ channel_id: "bad", display_name: "@씨발맨", message: "방송 재밌어요" }),
+      msg({ channel_id: "pii", display_name: "010-1234-5678", message: "방송 재밌어요" }),
+      msg({ channel_id: "ok", display_name: "@수학쌤", message: "방송 재밌어요" }),
+    ]);
+    const reason = Object.fromEntries(ps.map((p) => [p.channel_id, p.excluded_reason]));
+    expect(reason).toEqual({ bad: "bad_nickname", pii: "bad_nickname", ok: null });
   });
   it("대표 댓글에서 개인정보·욕설 댓글은 빠진다", () => {
     const [p] = buildParticipants([

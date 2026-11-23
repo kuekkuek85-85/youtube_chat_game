@@ -257,6 +257,7 @@ const REASON_LABEL: Record<string, string> = {
   moderator: "모더레이터",
   opt_out: "#캐릭터제외 요청",
   no_usable_comments: "쓸 수 있는 댓글 없음(개인정보·욕설)",
+  bad_nickname: "닉네임에 욕설·개인정보",
   manual: "운영자 수동 제외",
   not_in_video: "이번 방송 댓글 없음(리허설 등)",
 };

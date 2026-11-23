@@ -1,24 +1,52 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { refresh } from "next/cache";
-import { ADMIN_COOKIE, checkPassword, requireAdmin, sessionToken } from "@/lib/auth";
-import { adminClient, setSettings } from "@/lib/supabase";
+import { createHash } from "node:crypto";
+import { ADMIN_COOKIE, SESSION_HOURS, checkPassword, requireAdmin, sessionToken } from "@/lib/auth";
+import { adminClient, removeCharacterImages, setSettings } from "@/lib/supabase";
 import { createCharacter, type ParticipantRow } from "@/lib/generate";
 import { AWARD_KEY, AWARD_MAX } from "@/lib/award";
 import { containsPII, containsProfanity } from "@/lib/filters";
 
+// 로그인 실패 제한: 같은 IP 에서 15분 안에 8번 틀리면 15분 동안 막는다 (전체 잠금은 운영진까지 막으므로 하지 않음)
+const FAIL_LIMIT = 8;
+const FAIL_WINDOW_MS = 15 * 60_000;
+
+async function clientKey(): Promise<string> {
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return `login_fail:${createHash("sha256").update(ip).digest("hex").slice(0, 16)}`;
+}
+
 export async function login(_prev: string | null, form: FormData): Promise<string | null> {
-  const pw = String(form.get("password") ?? "");
+  const pw = String(form.get("password") ?? "").slice(0, 200);
+  const db = adminClient();
+  const key = await clientKey();
+  const now = Date.now();
+  const { data: row } = await db.from("settings").select("value").eq("key", key).maybeSingle();
+  let fails = { n: 0, since: now };
+  try {
+    const v = JSON.parse(row?.value ?? "null");
+    if (v && typeof v.n === "number" && typeof v.since === "number" && now - v.since < FAIL_WINDOW_MS) fails = v;
+  } catch {}
+  if (fails.n >= FAIL_LIMIT) {
+    const min = Math.ceil((fails.since + FAIL_WINDOW_MS - now) / 60_000);
+    return `비밀번호를 너무 여러 번 틀렸습니다. ${min}분 뒤에 다시 시도하세요.`;
+  }
   // 무차별 대입을 늦추기 위한 짧은 지연
   await new Promise((r) => setTimeout(r, 400));
-  if (!checkPassword(pw)) return "비밀번호가 올바르지 않습니다.";
+  if (!checkPassword(pw)) {
+    await setSettings(db, { [key]: JSON.stringify({ n: fails.n + 1, since: fails.since }) }).catch(() => {});
+    return "비밀번호가 올바르지 않습니다.";
+  }
+  if (fails.n) await db.from("settings").delete().eq("key", key);
   (await cookies()).set(ADMIN_COOKIE, sessionToken(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_HOURS * 3600,
   });
   refresh();
   return null;
@@ -129,13 +157,23 @@ export async function setAwardPicks(messageIds: string[]): Promise<{ ok: boolean
   const db = adminClient();
   try {
     if (ids.length) {
-      const { data, error } = await db.from("chat_messages").select("id, channel_id, message").in("id", ids);
+      const { data, error } = await db.from("chat_messages").select("id, channel_id, display_name, message, author_role").in("id", ids);
       if (error) throw new Error(error.message);
       if ((data ?? []).length !== ids.length) return { ok: false, error: "댓글을 찾을 수 없습니다. 새로고침 후 다시 고르세요." };
       if (new Set(data!.map((m) => m.channel_id)).size !== ids.length) return { ok: false, error: "같은 사람의 댓글을 두 개 고를 수 없습니다." };
-      if (data!.some((m) => containsPII(m.message as string) || containsProfanity(m.message as string))) {
-        return { ok: false, error: "개인정보나 욕설이 들어간 댓글은 방송 화면에 띄울 수 없습니다." };
+      if (data!.some((m) => m.author_role !== "viewer")) return { ok: false, error: "운영진·모더레이터 댓글은 고를 수 없습니다." };
+      const unsafeText = (s: string) => containsPII(s) || containsProfanity(s);
+      if (data!.some((m) => unsafeText(m.message as string) || unsafeText(m.display_name as string))) {
+        return { ok: false, error: "개인정보나 욕설이 들어간 댓글·닉네임은 방송 화면에 띄울 수 없습니다." };
       }
+      const { data: ex, error: exErr } = await db
+        .from("participants")
+        .select("channel_id, excluded_reason")
+        .in("channel_id", data!.map((m) => m.channel_id as string))
+        .eq("excluded", true)
+        .in("excluded_reason", ["staff", "moderator", "bad_nickname"]);
+      if (exErr) throw new Error(exErr.message);
+      if (ex?.length) return { ok: false, error: "운영진이거나 닉네임에 문제가 있는 참여자는 고를 수 없습니다." };
     }
     await setSettings(db, { [AWARD_KEY]: JSON.stringify(ids) });
     return { ok: true };
@@ -160,6 +198,10 @@ export async function setExcluded(channelId: string, excluded: boolean): Promise
     if (excluded) {
       const { error: hideErr } = await db.from("characters").update({ status: "hidden", updated_at: now }).eq("channel_id", channelId);
       if (hideErr) throw new Error(`참여자는 제외했지만 캐릭터 숨김에 실패했습니다. 다시 시도하세요: ${hideErr.message}`);
+      // 공개 버킷이라 파일도 지운다 (제외를 풀면 '재생성'으로 다시 만든다)
+      await removeCharacterImages(db, [channelId]).catch((e) => {
+        throw new Error(`캐릭터는 숨겼지만 이미지 파일 삭제에 실패했습니다. 다시 시도하세요: ${(e as Error).message}`);
+      });
     }
     return { ok: true };
   } catch (e) {
