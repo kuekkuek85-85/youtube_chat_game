@@ -99,17 +99,21 @@ function WinnerCard({ w, rank }: { w: StageWinner; rank: number }) {
   return (
     <article className="card-hi award-pop flex h-full min-h-0 flex-col items-center justify-center gap-[2vh] p-[3vh] shadow-[0_0_60px_-15px_rgba(212,255,42,.55)]">
       <p className="rounded-full bg-lime px-5 py-1 text-[clamp(1rem,2.6vh,1.6rem)] font-black text-ink">베스트 댓글 {rank}</p>
-      {w.imageUrl ? (
-        <img src={w.imageUrl} alt={w.characterName ?? ""} className="aspect-square h-[24vh] rounded-3xl bg-green object-cover" />
-      ) : (
-        <div className="grid aspect-square h-[18vh] place-items-center rounded-full bg-green text-[9vh]">🏆</div>
-      )}
-      <div className="text-center">
-        <p className="text-[clamp(1.8rem,5.5vh,4rem)] font-black leading-tight text-green">{w.displayName}</p>
-        {w.characterName && <p className="text-[clamp(0.9rem,2.2vh,1.4rem)] italic text-sage">캐릭터 「{w.characterName}」</p>}
+      {/* 그림은 남는 높이만큼만 차지한다 (댓글이 길면 그림이 줄어들어 카드를 넘치지 않음) */}
+      <div className="flex min-h-[8vh] max-h-[24vh] flex-1 justify-center">
+        {w.imageUrl ? (
+          <img src={w.imageUrl} alt={w.characterName ?? ""} className="aspect-square h-full rounded-3xl bg-green object-cover" />
+        ) : (
+          <div className="grid aspect-square h-full place-items-center rounded-full bg-green text-[7vh]">🏆</div>
+        )}
       </div>
-      <blockquote className="w-full rounded-xl bg-lime px-6 py-[2vh] text-center text-[clamp(1.1rem,3.3vh,2.4rem)] font-bold leading-snug text-ink">
-        “{w.message}”
+      <div className="w-full min-w-0 shrink-0 text-center">
+        <p className="truncate text-[clamp(1.8rem,5.5vh,4rem)] font-black leading-tight text-green">{w.displayName}</p>
+        {w.characterName && <p className="truncate text-[clamp(0.9rem,2.2vh,1.4rem)] italic text-sage">캐릭터 「{w.characterName}」</p>}
+      </div>
+      {/* 긴 댓글은 5줄까지만 보이고 말줄임표 (전체는 마우스를 올리면 보임) */}
+      <blockquote title={w.message} className="w-full shrink-0 rounded-xl bg-lime px-6 py-[2vh] text-center text-[clamp(1rem,3vh,2.2rem)] font-bold leading-snug text-ink">
+        <p className="line-clamp-5 break-words">“{w.message}”</p>
       </blockquote>
     </article>
   );
