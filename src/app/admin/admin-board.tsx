@@ -39,11 +39,11 @@ const STATUS_LABEL: Record<string, string> = {
   hidden: "숨김",
 };
 const STATUS_COLOR: Record<string, string> = {
-  queued: "bg-gray-200 text-gray-800",
-  done: "bg-sky-100 text-sky-900",
-  failed: "bg-red-100 text-red-800",
-  approved: "bg-green-200 text-green-900",
-  hidden: "bg-gray-800 text-gray-100",
+  queued: "bg-chip text-sand",
+  done: "bg-green/20 text-green",
+  failed: "bg-coral/20 text-coral",
+  approved: "bg-lime text-ink",
+  hidden: "bg-chip text-paper/70",
 };
 const FILTERS = ["all", "done", "approved", "hidden", "failed", "queued", "pending", "excluded"] as const;
 const FILTER_LABEL: Record<string, string> = {
@@ -100,7 +100,7 @@ export function AdminBoard(props: {
         <Stat
           label="수집 상태"
           value={collector.label}
-          valueClassName={collector.tone === "ok" ? "text-green-700" : collector.tone === "warn" ? "text-red-600" : undefined}
+          valueClassName={collector.tone === "ok" ? "text-green-700" : collector.tone === "warn" ? "text-coral" : undefined}
           sub={`마지막 수집 ${timeAgo(settings.collector_last_poll)}`}
         />
         <Stat label="수집한 댓글" value={`${messageCount.toLocaleString()}건`} sub={`API 호출 ${settings.collector_calls ?? 0}회`} />
@@ -117,20 +117,20 @@ export function AdminBoard(props: {
       </section>
 
       {/* 공개 스위치 */}
-      <section className="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
+      <section className="flex flex-wrap items-center gap-3 card p-4">
         <span className="font-semibold">선물상자 공개</span>
         <button
           disabled={pending}
           onClick={() => start(() => setPublicOpen(!publicOpen))}
-          className={`rounded-full px-4 py-1.5 font-bold ${publicOpen ? "bg-green-500 text-white" : "bg-gray-300 text-gray-800"}`}
+          className={`rounded-full px-4 py-1.5 font-bold ${publicOpen ? "bg-lime text-ink" : "bg-chip text-paper"}`}
           aria-pressed={publicOpen}
         >
           {publicOpen ? "ON · 공개 중" : "OFF · 비공개"}
         </button>
         {publicOpen ? (
-          <span className="text-sm text-ink/60">승인된 캐릭터 {counts.approved ?? 0}명이 /gift 에 보입니다.</span>
+          <span className="text-sm text-sage">승인된 캐릭터 {counts.approved ?? 0}명이 /gift 에 보입니다.</span>
         ) : (
-          <span className="text-sm font-semibold text-red-600">
+          <span className="text-sm font-semibold text-coral">
             지금은 /gift 에 아무것도 안 보입니다. 승인된 {counts.approved ?? 0}명은 공개 ON 을 누르면 보입니다.
           </span>
         )}
@@ -144,16 +144,16 @@ export function AdminBoard(props: {
                 setNotice(r.ok ? `${r.count}명을 승인했습니다.` : `승인 실패: ${r.error}`);
               })
             }
-            className="rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-lime disabled:opacity-40"
+            className="rounded-lg bg-lime px-3 py-1.5 text-sm font-semibold text-ink disabled:opacity-40"
           >
             생성 완료 전체 승인 ({counts.done ?? 0})
           </button>
-          <Link href="/admin/award" className="rounded-lg bg-lime px-3 py-1.5 text-sm font-semibold">🏆 베스트 댓글 시상</Link>
-          <Link href="/gift" target="_blank" className="rounded-lg border border-ink/20 px-3 py-1.5 text-sm">/gift 열기</Link>
-          <button onClick={() => start(() => logout())} className="rounded-lg border border-ink/20 px-3 py-1.5 text-sm">로그아웃</button>
+          <Link href="/admin/award" className="rounded-lg bg-lime px-3 py-1.5 text-sm font-bold text-ink">🏆 베스트 댓글 시상</Link>
+          <Link href="/gift" target="_blank" className="rounded-lg border border-line px-3 py-1.5 text-sm">/gift 열기</Link>
+          <button onClick={() => start(() => logout())} className="rounded-lg border border-line px-3 py-1.5 text-sm">로그아웃</button>
         </div>
       </section>
-      {notice && <p className="rounded-lg bg-lime/60 px-4 py-2">{notice}</p>}
+      {notice && <p className="card-hi px-4 py-2 font-semibold text-lime">{notice}</p>}
 
       {/* 필터 */}
       <nav className="flex flex-wrap gap-2">
@@ -164,7 +164,7 @@ export function AdminBoard(props: {
             <Link
               key={f}
               href={f === "all" ? "/admin" : `/admin?status=${f}`}
-              className={`rounded-full px-3 py-1 text-sm ${filter === f ? "bg-ink text-lime" : "bg-white text-ink shadow-sm"}`}
+              className={`rounded-full px-3 py-1 text-sm ${filter === f ? "bg-lime text-ink font-bold" : "border border-line bg-panel text-paper"}`}
             >
               {FILTER_LABEL[f]} {n}
             </Link>
@@ -179,7 +179,7 @@ export function AdminBoard(props: {
           {shown.map((c) => (
             <CharacterCard key={c.id} c={c} participant={participantById.get(c.channel_id)} />
           ))}
-          {!shown.length && <p className="text-ink/60">해당하는 캐릭터가 없습니다. 터미널에서 npm run generate 를 실행하세요.</p>}
+          {!shown.length && <p className="text-sage">해당하는 캐릭터가 없습니다. 터미널에서 npm run generate 를 실행하세요.</p>}
         </section>
       )}
     </div>
@@ -188,10 +188,10 @@ export function AdminBoard(props: {
 
 function Stat({ label, value, sub, valueClassName }: { label: string; value: string; sub?: string; valueClassName?: string }) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm">
-      <div className="text-xs text-ink/60">{label}</div>
+    <div className="card p-4">
+      <div className="text-xs text-sage">{label}</div>
       <div className={`mt-1 truncate text-lg font-bold ${valueClassName ?? ""}`} title={value}>{value}</div>
-      {sub && <div className="mt-1 text-xs text-ink/60">{sub}</div>}
+      {sub && <div className="mt-1 text-xs text-sage" suppressHydrationWarning>{sub}</div>}
     </div>
   );
 }
@@ -214,39 +214,39 @@ function CharacterCard({ c, participant }: { c: AdminCharacter; participant?: Ad
   const excluded = participant?.excluded ?? false;
 
   return (
-    <article className={`flex flex-col gap-2 rounded-2xl bg-white p-4 shadow-sm ${pending ? "opacity-60" : ""}`}>
+    <article className={`flex flex-col gap-2 card p-4 ${pending ? "opacity-60" : ""}`}>
       <div className="flex items-start gap-3">
         {c.thumb_url ? (
           <a href={c.image_url ?? "#"} target="_blank" rel="noreferrer">
             <img src={c.thumb_url} alt={c.name ?? ""} width={112} height={112} className="size-28 rounded-xl bg-green object-cover" loading="lazy" />
           </a>
         ) : (
-          <div className="grid size-28 place-items-center rounded-xl bg-gray-100 text-xs text-ink/50">이미지 없음</div>
+          <div className="grid size-28 place-items-center rounded-xl bg-ink text-xs text-sage">이미지 없음</div>
         )}
         <div className="min-w-0 flex-1">
           <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_COLOR[c.status] ?? ""}`}>
             {STATUS_LABEL[c.status] ?? c.status}
           </span>
-          <h3 className="mt-1 truncate font-display text-xl">{c.name}</h3>
-          <p className="truncate text-sm text-ink/60">{c.display_name} · 댓글 {participant?.comment_count ?? "?"}건</p>
+          <h3 className="mt-1 truncate font-bold text-green text-xl">{c.name}</h3>
+          <p className="truncate text-sm text-sage">{c.display_name} · 댓글 {participant?.comment_count ?? "?"}건</p>
           <p className="text-sm">{c.personality}</p>
         </div>
       </div>
-      {c.quote && <p className="rounded-lg bg-lime/40 px-3 py-2 text-sm">“{c.quote}”</p>}
-      {c.comment && <p className="text-xs text-ink/60">원래 댓글: {c.comment}</p>}
-      {c.look.length > 0 && <p className="text-xs text-ink/50">외형: {c.look.join(", ")}</p>}
+      {c.quote && <p className="rounded-lg bg-lime/15 px-3 py-2 text-sm text-lime">“{c.quote}”</p>}
+      {c.comment && <p className="text-xs text-sage">원래 댓글: {c.comment}</p>}
+      {c.look.length > 0 && <p className="text-xs text-sage">외형: {c.look.join(", ")}</p>}
       {excluded && (
-        <p className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
+        <p className="rounded-lg bg-coral/15 px-3 py-1.5 text-xs font-semibold text-coral">
           제외된 참여자 ({REASON_LABEL[participant?.excluded_reason ?? ""] ?? participant?.excluded_reason}) · 승인할 수 없습니다
         </p>
       )}
-      {c.error && <p className="text-xs text-red-700">오류: {c.error}</p>}
+      {c.error && <p className="text-xs text-coral">오류: {c.error}</p>}
       {msg && <p className="text-xs font-semibold">{msg}</p>}
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
-        <button disabled={pending || excluded || c.status === "approved" || !c.image_url} onClick={() => change("approved")} title={excluded ? "제외된 참여자입니다" : undefined} className="rounded-lg bg-green-600 px-3 py-1 text-sm font-semibold text-white disabled:opacity-30">승인</button>
-        <button disabled={pending || c.status === "hidden"} onClick={() => change("hidden")} className="rounded-lg bg-gray-800 px-3 py-1 text-sm font-semibold text-white disabled:opacity-30">숨김</button>
-        <button disabled={pending || excluded} onClick={() => regen("image")} className="rounded-lg border border-ink/20 px-3 py-1 text-sm disabled:opacity-30" title="프로필은 두고 이미지만 다시">이미지만 재생성</button>
-        <button disabled={pending || excluded} onClick={() => regen("all")} className="rounded-lg border border-ink/20 px-3 py-1 text-sm disabled:opacity-30" title="프로필과 이미지 모두 다시">전체 재생성</button>
+        <button disabled={pending || excluded || c.status === "approved" || !c.image_url} onClick={() => change("approved")} title={excluded ? "제외된 참여자입니다" : undefined} className="rounded-lg bg-green px-3 py-1 text-sm font-bold text-ink disabled:opacity-30">승인</button>
+        <button disabled={pending || c.status === "hidden"} onClick={() => change("hidden")} className="rounded-lg bg-chip px-3 py-1 text-sm font-semibold text-paper disabled:opacity-30">숨김</button>
+        <button disabled={pending || excluded} onClick={() => regen("image")} className="rounded-lg border border-line px-3 py-1 text-sm disabled:opacity-30" title="프로필은 두고 이미지만 다시">이미지만 재생성</button>
+        <button disabled={pending || excluded} onClick={() => regen("all")} className="rounded-lg border border-line px-3 py-1 text-sm disabled:opacity-30" title="프로필과 이미지 모두 다시">전체 재생성</button>
       </div>
     </article>
   );
@@ -264,11 +264,11 @@ const REASON_LABEL: Record<string, string> = {
 
 function ParticipantTable({ rows }: { rows: AdminParticipant[] }) {
   const [pending, start] = useTransition();
-  if (!rows.length) return <p className="text-ink/60">없습니다.</p>;
+  if (!rows.length) return <p className="text-sage">없습니다.</p>;
   return (
-    <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
+    <div className="overflow-x-auto card">
       <table className="w-full text-left text-sm">
-        <thead className="border-b text-xs text-ink/60">
+        <thead className="border-b border-line text-xs text-sage">
           <tr>
             <th className="p-3">닉네임</th>
             <th className="p-3">댓글</th>
@@ -279,10 +279,10 @@ function ParticipantTable({ rows }: { rows: AdminParticipant[] }) {
         </thead>
         <tbody>
           {rows.map((p) => (
-            <tr key={p.channel_id} className="border-b last:border-0">
+            <tr key={p.channel_id} className="border-b border-line/50 last:border-0">
               <td className="p-3 font-semibold">{p.display_name}</td>
               <td className="p-3">{p.comment_count}</td>
-              <td className="max-w-md truncate p-3 text-ink/70">{p.top_comments[0] ?? "-"}</td>
+              <td className="max-w-md truncate p-3 text-sage">{p.top_comments[0] ?? "-"}</td>
               <td className="p-3">{p.excluded ? REASON_LABEL[p.excluded_reason ?? ""] ?? p.excluded_reason : "생성 대기"}</td>
               <td className="p-3">
                 <button
@@ -293,7 +293,7 @@ function ParticipantTable({ rows }: { rows: AdminParticipant[] }) {
                       if (!r.ok) alert(r.error);
                     })
                   }
-                  className="rounded-lg border border-ink/20 px-2 py-1 text-xs"
+                  className="rounded-lg border border-line px-2 py-1 text-xs"
                 >
                   {p.excluded ? "제외 해제" : "제외"}
                 </button>

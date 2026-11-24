@@ -84,13 +84,13 @@ export function AwardPicker({
   return (
     <div className="mt-6 flex flex-col gap-5">
       {/* 선정 결과 */}
-      <section className="rounded-2xl bg-ink p-5 text-paper">
+      <section className="card-hi p-5 text-paper">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="font-display text-2xl text-lime">선정된 베스트 댓글 {picks.length}/{MAX}</h2>
+          <h2 className="font-bold text-2xl text-lime">선정된 베스트 댓글 {picks.length}/{MAX}</h2>
           <Link
             href="/admin/award/show"
             target="_blank"
-            className={`ml-auto rounded-full px-4 py-2 font-bold ${picks.length ? "bg-lime text-ink" : "pointer-events-none bg-paper/20 text-paper/50"}`}
+            className={`ml-auto rounded-full px-4 py-2 font-bold ${picks.length ? "bg-lime text-ink" : "pointer-events-none bg-chip text-paper/50"}`}
           >
             발표 화면 열기 (방송용) ↗
           </Link>
@@ -99,8 +99,8 @@ export function AwardPicker({
           {Array.from({ length: MAX }, (_, i) => {
             const c = byId.get(picks[i] ?? "");
             return (
-              <li key={i} className="flex min-h-24 items-start gap-3 rounded-xl bg-paper/10 p-3">
-                <span className="font-display text-2xl text-lime">{i + 1}</span>
+              <li key={i} className="flex min-h-24 items-start gap-3 rounded-xl border border-line bg-ink/60 p-3">
+                <span className="font-bold text-2xl text-lime">{i + 1}</span>
                 {picks[i] ? (
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{c?.displayName ?? "(목록에 없는 댓글)"}</p>
@@ -125,17 +125,17 @@ export function AwardPicker({
           </button>
         )}
       </section>
-      {notice && <p className="rounded-lg bg-lime/60 px-4 py-2">{notice}</p>}
+      {notice && <p className="card-hi px-4 py-2 font-semibold text-lime">{notice}</p>}
 
       {/* AI 추천 */}
-      <section className="rounded-2xl border-2 border-ink/10 bg-white p-5">
+      <section className="card p-5">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="font-display text-2xl">🤖 AI 추천 후보</h2>
-          <p className="text-sm text-ink/60">AI 가 이번 방송 댓글을 읽고 후보 3개를 골라요. 최종 선정은 직접 하세요.</p>
+          <h2 className="font-bold text-green text-2xl">🤖 AI 추천 후보</h2>
+          <p className="text-sm text-sage">AI 가 이번 방송 댓글을 읽고 후보 3개를 골라요. 최종 선정은 직접 하세요.</p>
           <button
             disabled={thinking || pending}
             onClick={askAI}
-            className="ml-auto rounded-full bg-ink px-4 py-2 font-bold text-lime disabled:opacity-50"
+            className="ml-auto rounded-full bg-lime px-4 py-2 font-bold text-ink disabled:opacity-50"
           >
             {thinking ? "AI 가 댓글을 읽는 중… (최대 1분)" : suggestions.length ? "다시 추천받기" : "AI 추천 받기"}
           </button>
@@ -148,16 +148,16 @@ export function AwardPicker({
               const why = pickBlock(c);
               const picked = picks.includes(c.id);
               return (
-                <li key={sg.id} className={`flex flex-col gap-2 rounded-xl p-4 ${picked ? "bg-lime/50" : "bg-paper"}`}>
-                  <p className="text-xs font-semibold text-ink/50">후보 {i + 1}</p>
+                <li key={sg.id} className={`flex flex-col gap-2 rounded-xl p-4 ${picked ? "card-hi" : "border border-line bg-ink/50"}`}>
+                  <p className="text-xs font-semibold text-sage">후보 {i + 1}</p>
                   <p className="font-semibold">{c.displayName}</p>
                   <p className="flex-1 break-words">“{c.message}”</p>
-                  {sg.reason && <p className="text-xs text-ink/60">추천 이유: {sg.reason}</p>}
+                  {sg.reason && <p className="text-xs text-sage">추천 이유: {sg.reason}</p>}
                   <button
                     disabled={pending || !!why}
                     onClick={() => save([...picks, c.id])}
                     title={why ?? undefined}
-                    className="rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-lime disabled:opacity-30"
+                    className="rounded-lg bg-lime px-3 py-1.5 text-sm font-semibold text-ink disabled:opacity-30"
                   >
                     {picked ? "선정됨" : "이 댓글 선정"}
                   </button>
@@ -166,7 +166,7 @@ export function AwardPicker({
             })}
           </ol>
         ) : (
-          <p className="mt-3 text-sm text-ink/50">방송이 끝나갈 때(댓글이 충분히 모였을 때) 눌러 주세요. 여러 번 눌러도 됩니다.</p>
+          <p className="mt-3 text-sm text-sage">방송이 끝나갈 때(댓글이 충분히 모였을 때) 눌러 주세요. 여러 번 눌러도 됩니다.</p>
         )}
       </section>
 
@@ -176,32 +176,32 @@ export function AwardPicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="댓글 내용이나 닉네임으로 찾기"
-          className="min-w-64 flex-1 rounded-xl border border-ink/20 bg-white px-4 py-2"
+          className="min-w-64 flex-1 rounded-xl border border-line bg-panel px-4 py-2 text-paper placeholder:text-sage/80"
         />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={hideShort} onChange={(e) => setHideShort(e.target.checked)} />
           짧은 댓글(8자 미만) 숨기기
         </label>
-        <span className="text-sm text-ink/60">
+        <span className="text-sm text-sage">
           {videoId ? `이번 방송(${videoId})` : "전체"} 댓글 {comments.length.toLocaleString()}건 중 {shown.length.toLocaleString()}건 · 최신순
         </span>
       </section>
 
       {/* 댓글 목록 */}
-      <section className="flex flex-col divide-y overflow-hidden rounded-2xl bg-white shadow-sm">
+      <section className="card flex flex-col divide-y divide-line/50 overflow-hidden">
         {shown.slice(0, 500).map((c) => {
           const picked = picks.includes(c.id);
           const why = pickBlock(c);
           return (
-            <div key={c.id} className={`flex items-start gap-3 p-3 ${picked ? "bg-lime/40" : ""}`}>
+            <div key={c.id} className={`flex items-start gap-3 p-3 ${picked ? "bg-panel-hi" : ""}`}>
               {c.thumbUrl ? (
                 <img src={c.thumbUrl} alt="" width={48} height={48} className="size-12 rounded-lg bg-green object-cover" loading="lazy" />
               ) : (
-                <div className="size-12 rounded-lg bg-gray-100" />
+                <div className="size-12 rounded-lg bg-panel" />
               )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm">
-                  <b>{c.displayName}</b> <span className="text-ink/50">· {time(c.publishedAt)} · 이 사람 댓글 {countBy.get(c.channelId)}건</span>
+                  <b>{c.displayName}</b> <span className="text-sage">· {time(c.publishedAt)} · 이 사람 댓글 {countBy.get(c.channelId)}건</span>
                   {c.staff && <Badge tone="gray">운영진·모더레이터</Badge>}
                   {c.excludedReason && <Badge tone="red">{BLOCKED_REASONS.has(c.excludedReason) ? "시상 불가" : "캐릭터 제외"}</Badge>}
                   {c.unsafe && <Badge tone="red">개인정보·욕설</Badge>}
@@ -212,15 +212,15 @@ export function AwardPicker({
                 disabled={pending || !!why}
                 onClick={() => save([...picks, c.id])}
                 title={why ?? undefined}
-                className="shrink-0 rounded-lg bg-ink px-3 py-1.5 text-sm font-semibold text-lime disabled:opacity-30"
+                className="shrink-0 rounded-lg bg-lime px-3 py-1.5 text-sm font-semibold text-ink disabled:opacity-30"
               >
                 {picked ? "선정됨" : "선정"}
               </button>
             </div>
           );
         })}
-        {shown.length > 500 && <p className="p-3 text-sm text-ink/60">앞의 500건만 보여요. 검색어로 좁혀 주세요.</p>}
-        {!shown.length && <p className="p-6 text-center text-ink/60">댓글이 없습니다.</p>}
+        {shown.length > 500 && <p className="p-3 text-sm text-sage">앞의 500건만 보여요. 검색어로 좁혀 주세요.</p>}
+        {!shown.length && <p className="p-6 text-center text-sage">댓글이 없습니다.</p>}
       </section>
     </div>
   );
@@ -228,7 +228,7 @@ export function AwardPicker({
 
 function Badge({ tone, children }: { tone: "red" | "gray"; children: React.ReactNode }) {
   return (
-    <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${tone === "red" ? "bg-red-100 text-red-700" : "bg-gray-200 text-gray-700"}`}>
+    <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${tone === "red" ? "bg-coral/20 text-coral" : "bg-chip text-sand"}`}>
       {children}
     </span>
   );

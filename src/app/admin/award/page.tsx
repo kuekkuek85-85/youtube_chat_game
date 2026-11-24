@@ -18,10 +18,14 @@ export default function AwardAdminPage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-8">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-3xl">베스트 댓글 시상 🏆</h1>
-        <Link href="/admin" className="ml-auto rounded-lg border border-ink/20 px-3 py-1.5 text-sm">← 관리 화면</Link>
+        <img src="/brand/logo.png" alt="" width={48} height={48} className="size-12" />
+        <h1 className="flex flex-col">
+          <span className="text-3xl font-black leading-tight text-green">🏆 베스트 댓글 시상</span>
+          <span className="text-sm italic text-sage">Best comment award</span>
+        </h1>
+        <Link href="/admin" className="ml-auto rounded-lg border border-line px-3 py-1.5 text-sm">← 관리 화면</Link>
       </div>
-      <Suspense fallback={<p className="mt-6 text-ink/60">불러오는 중…</p>}>
+      <Suspense fallback={<p className="mt-6 text-sage">불러오는 중…</p>}>
         <AwardGate />
       </Suspense>
     </main>
@@ -53,7 +57,7 @@ async function AwardGate() {
     ? await db.from("chat_messages").select("id, channel_id, display_name, message, published_at, author_role").in("id", wanted)
     : { data: [], error: null };
   const err = msgRes.error ?? partRes.error ?? charRes.error ?? extraRes.error;
-  if (err) return <p className="mt-6 rounded-lg bg-red-100 p-4 text-red-800">DB 오류: {err.message}</p>;
+  if (err) return <p className="mt-6 rounded-lg border border-coral bg-coral/15 p-4 text-coral">DB 오류: {err.message}</p>;
 
   const excluded = new Map((partRes.data ?? []).map((p) => [p.channel_id as string, p.excluded_reason as string | null]));
   const chars = new Map((charRes.data ?? []).map((c) => [c.channel_id as string, c]));

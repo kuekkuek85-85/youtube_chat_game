@@ -5,42 +5,63 @@ import { GiftBox, type GiftCharacter } from "./gift-box";
 
 export default function GiftPage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-16 pt-8">
-      <header className="relative overflow-hidden rounded-3xl bg-ink px-6 pb-10 pt-7 text-paper">
-        <p className="text-sm font-semibold text-lime">교사 개발자의 날 · 2회 공개방송 · 2026. 11. 24.</p>
-        <h1 className="font-display mt-3 text-4xl leading-tight sm:text-5xl">
-          댓글로 함께해 주셔서
-          <br />
-          <span className="text-lime">고마워요!</span>
-        </h1>
-        <p className="mt-2 text-sm text-paper/70">Thank you for joining us in the live chat!</p>
-        <p className="relative z-10 mt-4 pr-6 text-[15px] leading-relaxed text-paper/90">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 pb-16 pt-6">
+      {/* 머리: PPT 슬라이드 머리와 같은 구성 (로고 원 · 두 줄 제목 · 상태 알약) */}
+      <header className="flex flex-col gap-5">
+        <div className="flex items-center justify-between gap-3">
+          <img src="/brand/logo.png" alt="교사 개발자" width={64} height={64} className="size-14 sm:size-16" />
+          <span className="flex items-center gap-2 rounded-full bg-chip px-4 py-1.5 text-sm font-bold text-paper">
+            <span aria-hidden className="size-2.5 rounded-full bg-lime shadow-[0_0_8px_#d4ff2a]" /> 선물상자 OPEN
+          </span>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-sage">교사 개발자의 날 · 2회 공개방송 · 2026. 11. 24.</p>
+          <h1 className="mt-2 text-4xl font-black leading-tight text-green sm:text-5xl">
+            🎁 댓글로 함께해 주셔서 <span className="text-lime">고마워요!</span>
+          </h1>
+          <p className="mt-1 text-base italic text-sage">Thank you for joining us in the live chat!</p>
+        </div>
+        <p className="card px-5 py-4 text-[15px] leading-relaxed text-paper">
           라이브에 남겨 주신 닉네임과 댓글로 세상에 하나뿐인 <b className="text-lime">○○핑</b> 캐릭터를 만들었어요.
           <br />
-          <span className="text-sm text-paper/60">We made a one-of-a-kind character from your nickname and comments.</span>
+          <span className="text-sm italic text-sage">We made a one-of-a-kind character from your nickname and comments.</span>
         </p>
-        <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-8 size-28 rounded-full bg-lime/90" />
-        <div aria-hidden className="pointer-events-none absolute bottom-14 right-4 size-6 rounded-full bg-green" />
       </header>
 
       <Suspense fallback={<GiftSkeleton />}>
         <GiftData />
       </Suspense>
 
-      <footer className="flex flex-col gap-3 rounded-3xl bg-lime px-6 py-6">
-        <p className="text-sm font-semibold">다음 방송 예고 · Coming next</p>
-        <p className="font-display text-2xl">3회 「구해줘요, 교사 개발자!」</p>
-        <p className="text-sm">2026. 12. 15. 공개방송에서 또 만나요! · See you on Dec 15.</p>
+      {/* 마무리: PPT 마지막 슬라이드 (이퀄라이저 · NEXT ON AIR 알약 · 주최 로고) */}
+      <footer className="flex flex-col items-center gap-5 pt-4 text-center">
+        <Equalizer />
+        <p className="text-lg font-bold text-paper">오늘 나눈 실패가, 누군가의 내일을 디버깅합니다</p>
+        <p className="-mt-3 text-sm italic text-sage">Today&apos;s failures will debug someone&apos;s tomorrow.</p>
+        <p className="rounded-full bg-panel-hi px-5 py-2 text-sm font-bold text-lime">
+          NEXT ON AIR · 2026. 12. 15.(화) 3회 「구해줘요, 교사 개발자!」
+        </p>
         <a
           href="https://www.instagram.com/sendevkorea/"
           target="_blank"
           rel="noreferrer"
-          className="self-start rounded-full bg-ink px-4 py-2 text-sm font-semibold text-lime"
+          className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-green"
         >
           인스타그램 @sendevkorea
         </a>
+        <img src="/brand/seoul-edu.png" alt="서울특별시교육청" width={180} height={44} className="mt-2 h-9 w-auto opacity-90" />
       </footer>
     </main>
+  );
+}
+
+function Equalizer() {
+  const bars = [0.5, 0.8, 0.6, 1, 0.7, 0.9, 0.55, 0.85, 0.65, 1, 0.6];
+  return (
+    <div aria-hidden className="flex h-12 items-end gap-1.5">
+      {bars.map((h, i) => (
+        <span key={i} className="eq-bar w-2 bg-lime" style={{ height: `${h * 100}%`, animationDelay: `${i * 90}ms` }} />
+      ))}
+    </div>
   );
 }
 
@@ -78,9 +99,9 @@ async function GiftData() {
 
 function Notice({ title, body }: { title: string; body: string }) {
   return (
-    <section className="rounded-3xl bg-white px-6 py-10 text-center shadow-sm">
-      <p className="font-display text-2xl">{title}</p>
-      <p className="mt-2 text-sm text-ink/70">{body}</p>
+    <section className="card px-6 py-10 text-center">
+      <p className="text-2xl font-bold text-green">{title}</p>
+      <p className="mt-2 text-sm text-paper/80">{body}</p>
     </section>
   );
 }
@@ -88,10 +109,10 @@ function Notice({ title, body }: { title: string; body: string }) {
 function GiftSkeleton() {
   return (
     <section className="flex flex-col gap-4" aria-busy>
-      <div className="h-14 animate-pulse rounded-2xl bg-white" />
+      <div className="h-14 animate-pulse rounded-2xl bg-panel" />
       <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
         {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} className="aspect-square animate-pulse rounded-2xl bg-green/40" />
+          <div key={i} className="aspect-square animate-pulse rounded-2xl bg-panel" />
         ))}
       </div>
     </section>

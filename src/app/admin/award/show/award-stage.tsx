@@ -31,50 +31,65 @@ export function AwardStage({ winners }: { winners: StageWinner[] }) {
     return (
       <div className="grid flex-1 place-items-center p-8 text-center">
         <div>
-          <p className="font-display text-4xl text-lime">아직 선정된 베스트 댓글이 없어요</p>
-          <p className="mt-3 text-paper/70">/admin/award 에서 2개를 고른 뒤 이 화면을 새로고침하세요.</p>
+          <p className="text-4xl font-bold text-green">아직 선정된 베스트 댓글이 없어요</p>
+          <p className="mt-3 italic text-sage">/admin/award 에서 2개를 고른 뒤 이 화면을 새로고침하세요.</p>
         </div>
       </div>
     );
   }
 
+  const done = revealed >= winners.length;
   return (
-    <div className="relative flex h-dvh flex-col items-center gap-[3vh] overflow-hidden px-6 py-[4vh]">
-      <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 size-72 rounded-full bg-lime/15" />
-      <div aria-hidden className="pointer-events-none absolute -bottom-32 -right-20 size-96 rounded-full bg-green/15" />
-
-      <header className="relative text-center">
-        <p className="text-[clamp(1rem,2.4vh,1.6rem)] font-semibold text-lime">교사 개발자의 날 · 2회 공개방송</p>
-        <h1 className="font-display mt-1 text-[clamp(2.5rem,7vh,5rem)] leading-tight">🏆 베스트 댓글상</h1>
-        <p className="mt-1 text-[clamp(0.9rem,2.2vh,1.4rem)] text-paper/70">라이브 채팅을 빛내 주신 두 분을 소개합니다!</p>
+    <div className="relative flex h-dvh flex-col gap-[3vh] overflow-hidden px-[4vw] py-[4vh]">
+      {/* 머리: PPT 슬라이드와 같은 구성 (로고 원 · 이모지 제목 · 영어 부제 · 상태 알약) */}
+      <header className="flex items-center gap-[2vw]">
+        <img src="/brand/logo.png" alt="교사 개발자" className="h-[11vh] w-auto" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[clamp(2rem,7vh,5rem)] font-black leading-tight text-green">🏆 베스트 댓글상</h1>
+          <p className="text-[clamp(0.9rem,2.4vh,1.5rem)] italic text-sage">Best comment award · 라이브 채팅을 빛내 주신 두 분</p>
+        </div>
+        <span className="hidden items-center gap-2 rounded-full bg-chip px-[1.6vw] py-[0.8vh] text-[clamp(0.9rem,2.2vh,1.4rem)] font-bold text-paper sm:flex">
+          <span aria-hidden className="size-[1.4vh] rounded-full bg-coral shadow-[0_0_10px_#ff5a4e]" /> ON AIR
+        </span>
       </header>
 
-      <section className={`relative grid min-h-0 w-full max-w-6xl flex-1 gap-6 ${winners.length > 1 ? "md:grid-cols-2" : "max-w-2xl"}`}>
+      <section className={`mx-auto grid min-h-0 w-full max-w-6xl flex-1 gap-[2vw] ${winners.length > 1 ? "md:grid-cols-2" : "max-w-2xl"}`}>
         {winners.map((w, i) =>
           i < revealed ? <WinnerCard key={w.messageId} w={w} rank={i + 1} /> : <ClosedCard key={w.messageId} rank={i + 1} onOpen={next} active={i === revealed} />,
         )}
       </section>
 
-      <p className="relative text-sm text-paper/40">
-        {revealed < winners.length ? "클릭 또는 스페이스로 공개 · ← 되돌리기" : "축하합니다! 🎉"}
-      </p>
+      <footer className="flex items-end justify-between gap-4">
+        <p className="text-[clamp(0.9rem,2.4vh,1.5rem)] text-lime">
+          {done ? "🎉 축하합니다! 선물상자에서 캐릭터도 찾아보세요" : "🎁 클릭 또는 스페이스로 공개"}
+          <span className="block text-[clamp(0.75rem,1.8vh,1.1rem)] italic text-sage">{done ? "Congratulations!" : "Click or press space to reveal · ← to go back"}</span>
+        </p>
+        <Equalizer />
+      </footer>
     </div>
   );
 }
 
+function Equalizer() {
+  const bars = [0.5, 0.8, 0.6, 1, 0.7, 0.9, 0.55, 0.85, 0.65, 1, 0.6];
+  return (
+    <div aria-hidden className="flex h-[6vh] items-end gap-[0.4vw]">
+      {bars.map((h, i) => (
+        <span key={i} className="eq-bar w-[0.6vw] min-w-1.5 bg-lime" style={{ height: `${h * 100}%`, animationDelay: `${i * 90}ms` }} />
+      ))}
+    </div>
+  );
+}
+
+/** 닫힌 카드 = PPT 의 단계 카드, 지금 열 차례인 카드 = 강조 카드 */
 function ClosedCard({ rank, onOpen, active }: { rank: number; onOpen: () => void; active: boolean }) {
   return (
-    <button
-      onClick={onOpen}
-      disabled={!active}
-      className={`grid h-full place-items-center rounded-[2rem] border-4 border-dashed p-8 transition ${
-        active ? "animate-pulse border-lime bg-paper/5 hover:bg-paper/10" : "border-paper/20 bg-paper/5"
-      }`}
-    >
-      <div className="text-center">
-        <p className="text-[14vh]">🎁</p>
-        <p className="font-display mt-4 text-3xl text-lime">베스트 댓글 {rank}</p>
-        <p className="mt-2 text-paper/60">{active ? "눌러서 공개!" : "잠시 뒤 공개"}</p>
+    <button onClick={onOpen} disabled={!active} className={`grid h-full place-items-center p-8 transition ${active ? "card-hi hover:brightness-125" : "card"}`}>
+      <div className="flex flex-col items-center text-center">
+        <span className={`grid size-[12vh] place-items-center rounded-full text-[6vh] font-black text-ink ${active ? "bg-lime" : "bg-green"}`}>{rank}</span>
+        <p className="mt-[2vh] text-[8vh]">🎁</p>
+        <p className={`mt-[1vh] text-[clamp(1.4rem,4vh,2.6rem)] font-bold ${active ? "text-lime" : "text-green"}`}>베스트 댓글 {rank}</p>
+        <p className="text-[clamp(0.9rem,2.2vh,1.3rem)] italic text-sage">{active ? "Tap to reveal" : "Coming up next"}</p>
       </div>
     </button>
   );
@@ -82,18 +97,18 @@ function ClosedCard({ rank, onOpen, active }: { rank: number; onOpen: () => void
 
 function WinnerCard({ w, rank }: { w: StageWinner; rank: number }) {
   return (
-    <article className="award-pop flex h-full min-h-0 flex-col items-center justify-center gap-[2vh] rounded-[2rem] bg-paper p-[3vh] text-ink shadow-2xl">
-      <p className="rounded-full bg-ink px-5 py-1 font-display text-[clamp(1rem,2.6vh,1.6rem)] text-lime">베스트 댓글 {rank}</p>
+    <article className="card-hi award-pop flex h-full min-h-0 flex-col items-center justify-center gap-[2vh] p-[3vh] shadow-[0_0_60px_-15px_rgba(212,255,42,.55)]">
+      <p className="rounded-full bg-lime px-5 py-1 text-[clamp(1rem,2.6vh,1.6rem)] font-black text-ink">베스트 댓글 {rank}</p>
       {w.imageUrl ? (
         <img src={w.imageUrl} alt={w.characterName ?? ""} className="aspect-square h-[24vh] rounded-3xl bg-green object-cover" />
       ) : (
-        <div className="grid aspect-square h-[18vh] place-items-center rounded-3xl bg-lime text-[10vh]">🏆</div>
+        <div className="grid aspect-square h-[18vh] place-items-center rounded-full bg-green text-[9vh]">🏆</div>
       )}
       <div className="text-center">
-        <p className="font-display text-[clamp(1.8rem,5.5vh,4rem)] leading-tight">{w.displayName}</p>
-        {w.characterName && <p className="text-[clamp(0.9rem,2.2vh,1.4rem)] text-ink/60">캐릭터 「{w.characterName}」</p>}
+        <p className="text-[clamp(1.8rem,5.5vh,4rem)] font-black leading-tight text-green">{w.displayName}</p>
+        {w.characterName && <p className="text-[clamp(0.9rem,2.2vh,1.4rem)] italic text-sage">캐릭터 「{w.characterName}」</p>}
       </div>
-      <blockquote className="w-full rounded-2xl bg-lime/60 px-6 py-[2vh] text-center text-[clamp(1.1rem,3.3vh,2.4rem)] leading-snug">
+      <blockquote className="w-full rounded-xl bg-lime px-6 py-[2vh] text-center text-[clamp(1.1rem,3.3vh,2.4rem)] font-bold leading-snug text-ink">
         “{w.message}”
       </blockquote>
     </article>
