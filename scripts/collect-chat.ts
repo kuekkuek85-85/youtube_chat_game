@@ -1,8 +1,9 @@
 /**
  * 라이브 댓글 수집기 (PRD 6-1)
  *
- *   npm run collect -- <영상ID 또는 URL> [--minutes 150] [--min-interval 5000] [--fresh]
+ *   npm run collect -- <영상ID 또는 URL> [--minutes 150] [--min-interval 5000] [--fresh] [--until 20:50]
  *
+ * - --until 시각이 되면 라이브가 계속되더라도 수집을 마친다 (종료 코드 0 → collect-forever 도 재시작하지 않음).
  * - videos.list 로 activeLiveChatId 를 얻고, liveChatMessages.list 를 pollingIntervalMillis 이상 간격으로 부른다.
  * - 메시지 ID 를 PK 로 upsert 해서 중복 저장이 없다.
  * - nextPageToken 을 settings 에 저장하므로, 수집기를 다시 켜면 이어서 받는다. (--fresh 로 처음부터)
@@ -28,6 +29,21 @@ const minutes = Number(arg("minutes") ?? 150);
 // 기본값은 최소 5초. --minutes 를 짧게 줘도 할당량을 빨리 쓰지 않게 한다. (더 빠르게는 --min-interval 로 명시)
 const minInterval = Number(arg("min-interval") ?? Math.max(5000, minPollIntervalMs(minutes)));
 const fresh = process.argv.includes("--fresh");
+// --until 20:50 : 라이브가 계속되더라도 이 시각에 수집을 마친다 (방송 뒤 정리 시간 댓글은 받지 않음)
+const until = parseUntil(arg("until"));
+
+function parseUntil(s?: string): number | null {
+  if (!s) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
+  if (!m) {
+    console.error(`--until 형식이 올바르지 않습니다: ${s} (예: 20:50)`);
+    process.exit(2);
+  }
+  const d = new Date();
+  d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  return d.getTime();
+}
+const pastUntil = () => until !== null && Date.now() >= until;
 
 const db = adminClient();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -47,6 +63,12 @@ async function countMessages(): Promise<number> {
 }
 
 async function main() {
+  if (pastUntil()) {
+    console.log(`[${now()}] 수집 마감 시각(${arg("until")})이 지나 수집하지 않습니다.`);
+    await setSettings(db, { collector_status: "finished" }).catch(() => {});
+    return;
+  }
+  if (until) console.log(`[${now()}] 수집 마감: ${arg("until")} (라이브가 계속돼도 이 시각에 멈춥니다)`);
   console.log(`[${now()}] 인증 방식: ${authMode()} / 영상: ${videoId} / 최소 폴링 간격: ${minInterval}ms (${minutes}분 기준)`);
   const callsBudget = Math.ceil((minutes * 60_000) / minInterval);
   console.log(`  예상 사용량: 약 ${callsBudget * 5 + 1} units (하루 기본 10,000 units)`);
@@ -94,6 +116,10 @@ async function main() {
 
       if (page.offlineAt) {
         console.log(`[${now()}] 라이브 채팅이 종료되었습니다 (${page.offlineAt}).`);
+        break;
+      }
+      if (pastUntil()) {
+        console.log(`[${now()}] 수집 마감 시각(${arg("until")})이 되어 수집을 마칩니다.`);
         break;
       }
       const wait = Math.max(page.pollingIntervalMillis ?? 0, minInterval) - (Date.now() - started);

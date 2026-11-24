@@ -113,7 +113,14 @@ async function main() {
   while (true) {
     const started = Date.now();
     n++;
-    if (until && Date.now() >= until.getTime()) lastRound = true;
+    if (until && Date.now() >= until.getTime()) {
+      lastRound = true;
+      // 수집기도 같은 시각에 멈추므로, 마감 직전 댓글이 저장될 때까지 잠깐 기다린 뒤 마지막 회차를 돈다
+      if (n > 1) {
+        console.log(`[${now()}] 마감 시각입니다. 마지막 댓글이 저장되도록 20초 기다린 뒤 마지막 회차를 시작합니다.`);
+        await sleep(20_000);
+      }
+    }
     const r = await round(n);
     if (r === "cap") {
       console.log(`[${now()}] 이미지 상한에 도달해 생성 도우미를 멈춥니다.`);
