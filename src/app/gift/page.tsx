@@ -32,13 +32,13 @@ export default function GiftPage() {
         <GiftData />
       </Suspense>
 
-      {/* 마무리: PPT 마지막 슬라이드 (이퀄라이저 · NEXT ON AIR 알약 · 주최 로고) */}
+      {/* 마무리: 디자인만 PPT 마지막 슬라이드 구성 (이퀄라이저 · 알약 · 주최 로고). 문구는 앱 원래 문구 */}
       <footer className="flex flex-col items-center gap-5 pt-4 text-center">
         <Equalizer />
-        <p className="text-lg font-bold text-paper">오늘 나눈 실패가, 누군가의 내일을 디버깅합니다</p>
-        <p className="-mt-3 text-sm italic text-sage">Today&apos;s failures will debug someone&apos;s tomorrow.</p>
-        <p className="rounded-full bg-panel-hi px-5 py-2 text-sm font-bold text-lime">
-          NEXT ON AIR · 2026. 12. 15.(화) 3회 「구해줘요, 교사 개발자!」
+        <p className="rounded-full bg-panel-hi px-5 py-2 text-sm font-bold text-lime">다음 방송 예고 · Coming next</p>
+        <p className="-mt-1 text-2xl font-bold text-green">3회 「구해줘요, 교사 개발자!」</p>
+        <p className="-mt-3 text-sm text-paper/85">
+          2026. 12. 15. 공개방송에서 또 만나요! · <i className="text-sage">See you on Dec 15.</i>
         </p>
         <a
           href="https://www.instagram.com/sendevkorea/"
